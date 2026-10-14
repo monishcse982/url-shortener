@@ -1,0 +1,31 @@
+URL Visit Tracker has been deployed.
+
+1. Check the application resources:
+
+  kubectl get deployment,pods,service \
+    --namespace {{ .Release.Namespace }} \
+    -l app.kubernetes.io/instance={{ .Release.Name }}
+
+2. Check the application logs:
+
+  kubectl logs \
+    --namespace {{ .Release.Namespace }} \
+    deployment/{{ include "url-visit-tracker.fullname" . }} \
+    --all-containers=true \
+    --tail=200
+
+3. Forward the application Service to localhost:
+
+  kubectl port-forward \
+    --namespace {{ .Release.Namespace }} \
+    service/{{ include "url-visit-tracker.fullname" . }} \
+    {{ .Values.service.port }}:{{ .Values.service.port }}
+
+4. In another terminal, verify the application:
+
+  curl --fail http://localhost:{{ .Values.service.port }}/metrics
+  curl --fail http://localhost:{{ .Values.service.port }}/dummy-target
+
+FastAPI documentation:
+
+  http://localhost:{{ .Values.service.port }}/docs

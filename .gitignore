@@ -1,0 +1,52 @@
+.env
+.env.*
+!.env.example
+.envrc
+
+# Local editor and operating-system files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Python environments, caches, and build outputs
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+.tox/
+.nox/
+__pycache__/
+*.py[cod]
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Generated artifacts and local data
+reports/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+deploy/charts/*/charts/*.tgz
+
+# Local cloud configuration, keys, and infrastructure state
+.aws/
+.kube/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*

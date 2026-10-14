@@ -1,0 +1,12 @@
+{{- if .Values.monitoring.dashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "url-visit-tracker.fullname" . }}-grafana-dashboard
+  labels:
+    grafana_dashboard: "1"
+    {{- include "url-visit-tracker.labels" . | nindent 4 }}
+data:
+  url-visit-tracker.json: |-
+{{ .Files.Get "dashboards/url-visit-tracker.json" | indent 4 }}
+{{- end }}

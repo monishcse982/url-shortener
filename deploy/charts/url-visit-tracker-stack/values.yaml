@@ -1,0 +1,108 @@
+url-visit-tracker:
+  enabled: true
+
+  replicaCount: 1
+
+  image:
+    repository: url-visit-tracker
+    pullPolicy: Never
+    tag: local
+
+  migrations:
+    enabled: true
+    envSecretName: url-visit-tracker-env
+    activeDeadlineSeconds: 240
+
+  service:
+    type: ClusterIP
+    port: 8000
+
+  livenessProbe:
+    httpGet:
+      path: /metrics
+      port: http
+
+  readinessProbe:
+    httpGet:
+      path: /metrics
+      port: http
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+  monitoring:
+    serviceMonitor:
+      enabled: true
+      interval: 15s
+    dashboard:
+      enabled: true
+
+postgresql:
+  enabled: true
+
+  auth:
+    existingSecret: url-visit-tracker-postgresql
+    username: url_tracker_user
+    database: url_visit_tracker
+
+  primary:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+    persistence:
+      enabled: true
+      size: 2Gi
+
+valkey:
+  enabled: true
+  fullnameOverride: valkey
+
+  auth:
+    enabled: true
+    usersExistingSecret: url-visit-tracker-valkey
+    aclUsers:
+      default:
+        permissions: "~* &* +@all"
+        passwordKey: default
+
+  dataStorage:
+    enabled: true
+    requestedSize: 1Gi
+    keepPvc: true
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+  metrics:
+    enabled: true
+    exporter:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
+    serviceMonitor:
+      enabled: true
+      interval: 15s
+
+kafka:
+  enabled: true
+  clusterName: url-tracker
+  userName: url-tracker-user
+  storageSize: 2Gi

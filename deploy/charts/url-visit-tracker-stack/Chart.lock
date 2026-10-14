@@ -1,0 +1,12 @@
+dependencies:
+- name: url-visit-tracker
+  repository: file://../url-visit-tracker
+  version: 0.1.0
+- name: postgresql
+  repository: oci://registry-1.docker.io/bitnamicharts
+  version: 18.11.4
+- name: valkey
+  repository: https://valkey.io/valkey-helm/
+  version: 0.11.0
+digest: sha256:5c8a41c62f35d4d0a442440479b9da6624509ca10dafb6bfcf9054458dd2aa2f
+generated: "2026-09-29T23:39:01.951013+05:30"

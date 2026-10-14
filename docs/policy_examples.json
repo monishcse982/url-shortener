@@ -1,0 +1,56 @@
+{
+  "time_restricted": {
+    "title": "Test",
+    "url": "http://localhost:9090/dummy-target",
+    "custom_code": "test_code",
+    "policy": {
+      "type": "time_restricted",
+      "ttl_seconds": 500
+    }
+  },
+  "visit_restricted_v1": {
+    "title": "Test",
+    "url": "http://localhost:9090/dummy-target",
+    "policy": {
+      "type": "visit_restricted",
+      "max_visits": 500,
+      "ttl_seconds": 500
+    }
+  },
+  "visit_restricted_v2": {
+    "title": "Test",
+    "url": "http://localhost:9090/dummy-target",
+    "policy": {
+      "type": "visit_restricted",
+      "max_visits": 500
+    }
+  },
+  "one_time_link": {
+    "title": "Test",
+    "url": "http://localhost:9090/dummy-target",
+    "policy": {
+      "type": "one_time"
+    }
+  },
+  "password_protected_link": {
+    "title": "Test",
+    "url": "http://localhost:9090/dummy-target",
+    "policy": {
+      "type": "password_protected",
+      "password": "test_password",
+      "ttl_seconds": 500
+    }
+  },
+  "ip_protected_link": {
+    "title": "Test",
+    "url": "http://localhost:9090/dummy-target",
+    "policy": {
+      "type": "ip_restricted",
+      "ttl_seconds": 500,
+      "ip_list": [
+        "127.0.0.0",
+        "127.0.0.1"
+      ]
+    }
+  }
+}

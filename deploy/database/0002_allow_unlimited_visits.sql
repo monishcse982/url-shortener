@@ -1,0 +1,2 @@
+ALTER TABLE links
+    ALTER COLUMN max_visits DROP NOT NULL;
