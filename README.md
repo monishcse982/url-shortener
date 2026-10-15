@@ -523,6 +523,10 @@ Enable the repository-local hooks in a new clone:
 sh scripts/install-git-hooks.sh
 ```
 
+This sets `core.hooksPath` to the tracked `.githooks/` directory. Git ignores
+`.git/hooks/` while that setting is active. Keep the executable `pre-commit`
+and `pre-push` files in `.githooks/` so they are available in new clones.
+
 The commit hook checks staged whitespace and scans every staged file for
 credential file paths and likely hard-coded secrets. The push hook scans the
 history being pushed, including earlier versions of files. Both hooks use
