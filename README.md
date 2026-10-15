@@ -419,6 +419,14 @@ The directory contains the HTML report, CSV data, Locust log, executed command, 
 
 ## Code Quality
 
+Pull requests and pushes run the checks in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml): locked Python dependency
+installation, Ruff lint and formatting, unit tests, Helm lint and rendering,
+Docker image build, and secret scans of committed files and Git history. The
+workflow has read-only repository permissions and does not deploy. To prevent
+merges when a check fails, require these job checks in the GitHub branch
+protection settings for `master`.
+
 Run Ruff checks:
 
 ```bash
