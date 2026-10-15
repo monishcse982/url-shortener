@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 from locust import HttpUser, constant, task
 
-from tests.load.link_cases import LINK_CASES, policy_for
+from tests.load.link_cases import LINK_CASES, policy_for, visit_headers_for
 
 
 class VisitShortLinkUser(HttpUser):
@@ -29,6 +29,7 @@ class VisitShortLinkUser(HttpUser):
                 name=f"GET /link/{{short_code}} [{case_name}]",
                 catch_response=True,
                 allow_redirects=False,
+                headers=visit_headers_for(link_type),
             ) as response:
                 if response.status_code == 302:
                     response.success()

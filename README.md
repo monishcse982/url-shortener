@@ -49,8 +49,10 @@ and combined expiry/visit-limit settings. Each completed creation task creates
 one link per combination; each visit task visits each combination once. The
 complete-flow task creates each combination and attempts eleven visits per link,
 checking the final redirect or visit-limit response.
-Password and IP policies are currently stored during creation;
-redirect access checks for those policies are not implemented yet.
+Password protected redirects require a `password` request header on every
+visit. IP restricted redirects allow only configured addresses or CIDR ranges.
+The load scenarios allow both IPv4 and IPv6 runner addresses for their IP
+restricted cases; unit tests cover specific allowed and denied addresses.
 
 Run the unit tests with:
 

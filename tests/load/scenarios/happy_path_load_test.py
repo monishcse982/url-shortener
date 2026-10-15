@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 from locust import HttpUser, constant, task
 
-from tests.load.link_cases import LINK_CASES, VISIT_LIMIT, policy_for
+from tests.load.link_cases import LINK_CASES, VISIT_LIMIT, policy_for, visit_headers_for
 
 
 class HappyPathMaxVisitsUser(HttpUser):
@@ -11,7 +11,7 @@ class HappyPathMaxVisitsUser(HttpUser):
 
     @task
     def create_and_visit_link_mix(self):
-        links: list[tuple[str, str, int | None]] = []
+        links: list[tuple[str, str, str, int | None]] = []
         cases = random.sample(LINK_CASES, k=len(LINK_CASES))
 
         for link_type, profile_name, ttl_seconds, max_visits in cases:
@@ -23,18 +23,18 @@ class HappyPathMaxVisitsUser(HttpUser):
                 max_visits=max_visits,
             )
             if short_code is not None:
-                links.append((short_code, case_name, max_visits))
+                links.append((short_code, link_type, case_name, max_visits))
 
         # Interleave visits across links instead of exhausting each in turn.
         for _ in range(VISIT_LIMIT):
             random.shuffle(links)
-            for short_code, case_name, _ in links:
-                self._visit(short_code, case_name)
+            for short_code, link_type, case_name, _ in links:
+                self._visit(short_code, link_type, case_name)
 
         random.shuffle(links)
-        for short_code, case_name, max_visits in links:
+        for short_code, link_type, case_name, max_visits in links:
             expected_status = 410 if max_visits is not None else 302
-            self._check_final_visit(short_code, case_name, expected_status)
+            self._check_final_visit(short_code, link_type, case_name, expected_status)
 
     def _create_short_link(
         self,
@@ -78,12 +78,13 @@ class HappyPathMaxVisitsUser(HttpUser):
             response.success()
             return short_code
 
-    def _visit(self, short_code: str, policy_name: str) -> None:
+    def _visit(self, short_code: str, link_type: str, policy_name: str) -> None:
         with self.client.get(
             f"/link/{short_code}",
             name=f"GET /link/{{short_code}} [{policy_name}]",
             catch_response=True,
             allow_redirects=False,
+            headers=visit_headers_for(link_type),
         ) as response:
             if response.status_code == 302:
                 response.success()
@@ -93,13 +94,14 @@ class HappyPathMaxVisitsUser(HttpUser):
                 )
 
     def _check_final_visit(
-        self, short_code: str, case_name: str, expected_status: int
+        self, short_code: str, link_type: str, case_name: str, expected_status: int
     ) -> None:
         with self.client.get(
             f"/link/{short_code}",
             name=f"GET /link/{{short_code}} final [{case_name}]",
             catch_response=True,
             allow_redirects=False,
+            headers=visit_headers_for(link_type),
         ) as response:
             if response.status_code == expected_status:
                 response.success()
