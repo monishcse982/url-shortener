@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import hmac
+import ipaddress
 import json
 import logging
 import secrets
@@ -136,19 +137,13 @@ class LinksService:
         short_link_access_request_count.inc()
         link, resolved_from_cache = await self._resolve_link(short_code)
         await self._ensure_link_can_be_visited(link)
+        self._authorize_visit(link, password=password, ip_address=ip_address)
         await self._admit_visit_if_limited(link)
-        stored_password = link.policy.get("password")
-        if stored_password is not None:
-            if password is None:
-                raise UnauthorizedError(
-                    message=f"Password required for short link short_code={short_code}"
-                ) from None
-            if not self._verify_password(password, stored_password):
-                raise UnauthorizedError(
-                    message=f"Invalid password for short link short_code={short_code}"
-                ) from None
 
-        if not resolved_from_cache and stored_password is None:
+        if (
+            not resolved_from_cache
+            and (link.policy or {}).get("type", "public") == "public"
+        ):
             await self._cache_if_eligible(link)
 
         self._publish_visit_event(
@@ -160,6 +155,43 @@ class LinksService:
 
         self._record_cache_resolution(link, resolved_from_cache)
         return str(link.original_url)
+
+    @staticmethod
+    def _authorize_visit(
+        link: Link, *, password: str | None, ip_address: str | None
+    ) -> None:
+        policy = link.policy or {}
+        stored_password = policy.get("password")
+        if stored_password is not None:
+            if password is None:
+                raise UnauthorizedError(
+                    message=(
+                        f"Password required for short link short_code={link.short_code}"
+                    )
+                ) from None
+            if not LinksService._verify_password(password, stored_password):
+                raise UnauthorizedError(
+                    message=(
+                        f"Invalid password for short link short_code={link.short_code}"
+                    )
+                ) from None
+
+        allowed_ips = policy.get("ip_list")
+        if allowed_ips is not None:
+            try:
+                visitor_ip = ipaddress.ip_address(ip_address) if ip_address else None
+            except ValueError:
+                visitor_ip = None
+            if visitor_ip is None or not any(
+                visitor_ip in ipaddress.ip_network(entry, strict=False)
+                for entry in allowed_ips
+            ):
+                raise UnauthorizedError(
+                    message=(
+                        "IP address not allowed for short link "
+                        f"short_code={link.short_code}"
+                    )
+                ) from None
 
     async def _resolve_link(self, short_code: str) -> tuple[Link, bool]:
         cached_link = await self.get_cached_link(short_code)
@@ -343,7 +375,10 @@ class LinksService:
 
     @staticmethod
     def _record_cache_resolution(link: Link, resolved_from_cache: bool) -> None:
-        if link.max_visits is not None:
+        if (
+            link.max_visits is not None
+            or (link.policy or {}).get("type", "public") != "public"
+        ):
             return
 
         if resolved_from_cache:
@@ -368,6 +403,7 @@ class LinksService:
             "created_at": link.created_at.isoformat(),
             "expires_at": link.expires_at.isoformat(),
             "visit_count": int(link.visit_count),
+            "policy": link.policy or {},
         }
 
     @staticmethod
@@ -382,6 +418,7 @@ class LinksService:
             created_at=datetime.fromisoformat(str(payload["created_at"])),
             expires_at=datetime.fromisoformat(str(payload["expires_at"])),
             visit_count=int(payload["visit_count"]),
+            policy=payload["policy"],
         )
 
     @staticmethod

@@ -37,12 +37,39 @@ class LinkTypeSchemaTests(unittest.TestCase):
                 )
                 self.assertEqual(request.policy.type.value, link_type)
 
+    def test_public_policy_is_default(self) -> None:
+        request = ShortenRequest.model_validate(
+            {"url": "https://example.com/target", "ttl_seconds": 60}
+        )
+        self.assertEqual(request.policy.type, LinkPolicyType.PUBLIC)
+        self.assertIsNone(request.short_code)
+        self.assertIsNone(request.max_visits)
+
+    def test_supported_ip_address_and_cidr_formats(self) -> None:
+        request = ShortenRequest.model_validate(
+            {
+                "url": "https://example.com/target",
+                "ttl_seconds": 60,
+                "policy": {
+                    "type": "ip_restricted",
+                    "ip_list": ["127.0.0.1", "192.0.2.0/24", "::1", "2001:db8::/32"],
+                },
+            }
+        )
+        self.assertEqual(len(request.policy.ip_list), 4)
+
     def test_protected_links_require_valid_policy_configuration(self) -> None:
         invalid_policies = (
             {"type": "password_protected"},
             {"type": "ip_restricted"},
             {"type": "ip_restricted", "ip_list": ["not-an-ip"]},
+            {"type": "ip_restricted", "ip_list": []},
+            {"type": "ip_restricted", "ip_list": ["127.0.0.1"], "password": "x"},
+            {"type": "password_protected", "password": ""},
+            {"type": "password_protected", "password": "x", "ip_list": ["::1"]},
             {"type": "public", "password": "secret"},
+            {"type": "public", "ip_list": ["127.0.0.1"]},
+            {"type": "public", "unknown": "value"},
         )
         for policy in invalid_policies:
             with self.subTest(policy=policy):
@@ -54,6 +81,28 @@ class LinkTypeSchemaTests(unittest.TestCase):
                             "policy": policy,
                         }
                     )
+
+    def test_request_field_boundaries(self) -> None:
+        invalid_fields = (
+            {"url": "ftp://example.com"},
+            {"ttl_seconds": 0},
+            {"ttl_seconds": 60 * 60 * 24 * 30 + 1},
+            {"max_visits": 0},
+            {"short_code": "ab"},
+            {"short_code": "invalid code"},
+            {"short_code": "a" * 33},
+            {"title": ""},
+            {"unexpected": "value"},
+        )
+        for fields in invalid_fields:
+            with self.subTest(fields=fields):
+                request = {
+                    "url": "https://example.com/target",
+                    "ttl_seconds": 60,
+                    **fields,
+                }
+                with self.assertRaises(ValidationError):
+                    ShortenRequest.model_validate(request)
 
 
 class LinkTypeCreationTests(unittest.IsolatedAsyncioTestCase):

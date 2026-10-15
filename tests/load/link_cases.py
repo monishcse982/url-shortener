@@ -21,5 +21,12 @@ def policy_for(link_type: str) -> dict[str, object]:
     if link_type == "password_protected":
         return {"type": "password_protected", "password": "load-test-password"}
     if link_type == "ip_restricted":
-        return {"type": "ip_restricted", "ip_list": ["127.0.0.1"]}
+        # Accept any runner address; access control is checked in unit tests.
+        return {"type": "ip_restricted", "ip_list": ["0.0.0.0/0", "::/0"]}
     raise ValueError(f"Unsupported link type: {link_type}")
+
+
+def visit_headers_for(link_type: str) -> dict[str, str]:
+    if link_type == "password_protected":
+        return {"password": "load-test-password"}
+    return {}

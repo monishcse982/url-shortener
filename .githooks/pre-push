@@ -3,3 +3,11 @@ set -eu
 
 repo_root=$(git rev-parse --show-toplevel)
 python3 "$repo_root/scripts/check-git-content.py" --pre-push
+
+if ! command -v uv >/dev/null 2>&1; then
+    printf 'uv is required to run unit tests before pushing.\n' >&2
+    exit 1
+fi
+
+cd "$repo_root"
+uv run --locked python -m unittest discover -s tests/unit -v

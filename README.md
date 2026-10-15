@@ -49,8 +49,10 @@ and combined expiry/visit-limit settings. Each completed creation task creates
 one link per combination; each visit task visits each combination once. The
 complete-flow task creates each combination and attempts eleven visits per link,
 checking the final redirect or visit-limit response.
-Password and IP policies are currently stored during creation;
-redirect access checks for those policies are not implemented yet.
+Password protected redirects require a `password` request header on every
+visit. IP restricted redirects allow only configured addresses or CIDR ranges.
+The load scenarios allow both IPv4 and IPv6 runner addresses for their IP
+restricted cases; unit tests cover specific allowed and denied addresses.
 
 Run the unit tests with:
 
@@ -537,8 +539,9 @@ and `pre-push` files in `.githooks/` so they are available in new clones.
 
 The commit hook checks staged whitespace and scans every staged file for
 credential file paths and likely hard-coded secrets. The push hook scans the
-history being pushed, including earlier versions of files. Both hooks use
-Python 3 and print file locations without printing matched secret values.
+history being pushed, including earlier versions of files, then runs the unit
+tests with `uv run --locked python -m unittest discover -s tests/unit -v`.
+The secret checks print file locations without printing matched values.
 These pattern checks help catch mistakes but are not a complete secret audit.
 
 Before the first commit, review exactly what Git will include:
