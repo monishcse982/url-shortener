@@ -46,6 +46,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Register Valkey chart repository
+        run: helm repo add valkey https://valkey.io/valkey-helm/
       - name: Build locked dependencies, lint, and render
         run: make chart-validate HELM_CONTEXT=
 
@@ -65,6 +67,9 @@ jobs:
     name: Secret scan
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Check out full history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
