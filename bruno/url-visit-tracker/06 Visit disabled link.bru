@@ -1,0 +1,19 @@
+meta {
+  name: 06 Visit disabled link
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/link/{{customCode}}
+  body: none
+  auth: none
+}
+
+settings {
+  followRedirects: false
+}
+
+docs {
+  Run 02 and 05 first. Expected 404 with code resource_not_found.
+}

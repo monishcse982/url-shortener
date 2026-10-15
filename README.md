@@ -94,6 +94,9 @@ The Kafka consumer currently starts inside the FastAPI process during applicatio
 | `GET` | `/metrics` | Expose Prometheus metrics |
 | `GET` | `/docs` | OpenAPI documentation |
 
+A [Bruno collection](bruno/url-visit-tracker/README.md) provides local
+environments and an ordered create, visit, and disable workflow for the API.
+
 Create request:
 
 ```json
@@ -416,6 +419,14 @@ The directory contains the HTML report, CSV data, Locust log, executed command, 
 
 ## Code Quality
 
+Pull requests and pushes run the checks in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml): locked Python dependency
+installation, Ruff lint and formatting, unit tests, Helm lint and rendering,
+Docker image build, and secret scans of committed files and Git history. The
+workflow has read-only repository permissions and does not deploy. To prevent
+merges when a check fails, require these job checks in the GitHub branch
+protection settings for `master`.
+
 Run Ruff checks:
 
 ```bash
@@ -429,7 +440,7 @@ Apply formatting:
 uv run ruff format .
 ```
 
-Validate Helm dependencies and rendered manifests:
+Restore the chart dependencies from `Chart.lock`, then lint and render the manifests:
 
 ```bash
 make chart-validate
@@ -519,6 +530,10 @@ Enable the repository-local hooks in a new clone:
 ```bash
 sh scripts/install-git-hooks.sh
 ```
+
+This sets `core.hooksPath` to the tracked `.githooks/` directory. Git ignores
+`.git/hooks/` while that setting is active. Keep the executable `pre-commit`
+and `pre-push` files in `.githooks/` so they are available in new clones.
 
 The commit hook checks staged whitespace and scans every staged file for
 credential file paths and likely hard-coded secrets. The push hook scans the

@@ -17,6 +17,18 @@ class ApplicationError(Exception):
         super().__init__(message)
 
 
+class UnauthorizedError(ApplicationError):
+    code = "unauthorized"
+    status_code = HTTPStatus.UNAUTHORIZED
+
+    def __init__(
+        self,
+        *,
+        message: str,
+    ) -> None:
+        super().__init__(message)
+
+
 class ShortCodeConflictError(ApplicationError):
     code = "short_code_already_exists"
     status_code = HTTPStatus.BAD_REQUEST

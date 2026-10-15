@@ -118,8 +118,8 @@ chart-deps: ## Refresh the umbrella chart dependencies and lock file.
 	helm dependency update $(STACK_CHART)
 	helm dependency list $(STACK_CHART)
 
-chart-validate: ## Package the app chart, lint both charts, and render the complete stack.
-	helm package $(APP_CHART) --destination $(STACK_CHART)/charts
+chart-validate: ## Build locked dependencies, lint both charts, and render the complete stack.
+	helm dependency build $(STACK_CHART)
 	helm lint $(APP_CHART)
 	helm lint $(STACK_CHART)
 	helm template $(RELEASE) $(STACK_CHART) $(HELM_CONTEXT) --namespace $(NAMESPACE) --set url-visit-tracker.monitoring.serviceMonitor.interval=$(SCRAPE_INTERVAL) --set valkey.metrics.serviceMonitor.interval=$(SCRAPE_INTERVAL) > $(RENDERED_MANIFEST)

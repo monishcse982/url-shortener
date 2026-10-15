@@ -1,0 +1,15 @@
+meta {
+  name: 01 Dummy target
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/dummy-target
+  body: none
+  auth: none
+}
+
+docs {
+  A small endpoint to check that the API port forward is reachable.
+}

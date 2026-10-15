@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import hmac
 import json
 import logging
 import secrets
@@ -16,6 +17,7 @@ from app.core.exceptions import (
     ResourceGoneError,
     ResourceNotFoundError,
     ShortCodeConflictError,
+    UnauthorizedError,
 )
 from app.core.metrics import (
     short_link_access_request_count,
@@ -95,7 +97,7 @@ class LinksService:
                 short_links_created.inc()
 
                 return ShortenResponse(
-                    shortened_url=f"{settings.base_url}/{link.short_code}",
+                    shortened_url=f"{settings.base_url}/link/{link.short_code}",
                     expires_at=link.expires_at,
                 )
 
@@ -126,6 +128,7 @@ class LinksService:
         self,
         short_code: str,
         *,
+        password: str | None,
         user_agent: str | None,
         referrer: str | None,
         ip_address: str | None,
@@ -134,8 +137,18 @@ class LinksService:
         link, resolved_from_cache = await self._resolve_link(short_code)
         await self._ensure_link_can_be_visited(link)
         await self._admit_visit_if_limited(link)
+        stored_password = link.policy.get("password")
+        if stored_password is not None:
+            if password is None:
+                raise UnauthorizedError(
+                    message=f"Password required for short link short_code={short_code}"
+                ) from None
+            if not self._verify_password(password, stored_password):
+                raise UnauthorizedError(
+                    message=f"Invalid password for short link short_code={short_code}"
+                ) from None
 
-        if not resolved_from_cache:
+        if not resolved_from_cache and stored_password is None:
             await self._cache_if_eligible(link)
 
         self._publish_visit_event(
@@ -146,7 +159,6 @@ class LinksService:
         )
 
         self._record_cache_resolution(link, resolved_from_cache)
-        logger.info("Redirect resolved short_code=%s", link.short_code)
         return str(link.original_url)
 
     async def _resolve_link(self, short_code: str) -> tuple[Link, bool]:
@@ -388,3 +400,24 @@ class LinksService:
                 base64.urlsafe_b64encode(digest).decode("ascii").rstrip("="),
             )
         )
+
+    @staticmethod
+    def _verify_password(password: str, stored: str) -> bool:
+        algorithm, salt_b64, digest_b64 = stored.split("$")
+        if algorithm != "scrypt":
+            return False
+
+        def decode(value: str) -> bytes:
+            return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
+        salt = decode(salt_b64)
+        expected = decode(digest_b64)
+        actual = hashlib.scrypt(
+            password.encode("utf-8"),
+            salt=salt,
+            n=2**14,
+            r=8,
+            p=1,
+            dklen=len(expected),
+        )
+        return hmac.compare_digest(actual, expected)

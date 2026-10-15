@@ -1,0 +1,20 @@
+meta {
+  name: 12 Exhausted limited link
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/link/{{limitedCode}}
+  body: none
+  auth: none
+}
+
+settings {
+  followRedirects: false
+}
+
+docs {
+  Run 10 and 11 first. Expected 410 with code link_visit_limit_reached.
+  A later lookup returns 404 after the exhausted link is soft deleted.
+}
