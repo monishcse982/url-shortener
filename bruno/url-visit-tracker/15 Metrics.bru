@@ -1,0 +1,16 @@
+meta {
+  name: 15 Metrics
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/metrics
+  body: none
+  auth: none
+}
+
+docs {
+  Prometheus text exposition. Look for short_links_created_total and other
+  application metrics after creating and visiting links.
+}

@@ -57,6 +57,7 @@ async def redirect_to_url(
     logger.info("Redirect request received short_code=%s", short_code)
     original_url = await links_service.get_url(
         short_code,
+        password=request.headers.get("password"),
         user_agent=request.headers.get("user-agent"),
         referrer=request.headers.get("referer"),
         ip_address=request.client.host if request.client else None,

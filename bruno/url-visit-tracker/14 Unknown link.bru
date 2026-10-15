@@ -1,0 +1,19 @@
+meta {
+  name: 14 Unknown link
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/link/bruno-does-not-exist
+  body: none
+  auth: none
+}
+
+settings {
+  followRedirects: false
+}
+
+docs {
+  Expected 404 with code resource_not_found.
+}

@@ -1,0 +1,28 @@
+meta {
+  name: 04 Duplicate custom code
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/link/
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "url": "{{destinationUrl}}",
+    "ttl_seconds": {{ttlSeconds}},
+    "short_code": "{{customCode}}",
+    "policy": {"type": "public"}
+  }
+}
+
+docs {
+  Run 02 first. Expected 400 with code short_code_already_exists.
+}

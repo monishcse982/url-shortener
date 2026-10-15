@@ -1,0 +1,19 @@
+meta {
+  name: 11 First limited visit
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/link/{{limitedCode}}
+  body: none
+  auth: none
+}
+
+settings {
+  followRedirects: false
+}
+
+docs {
+  Run 10 first. The first visit should return 302.
+}

@@ -94,6 +94,9 @@ The Kafka consumer currently starts inside the FastAPI process during applicatio
 | `GET` | `/metrics` | Expose Prometheus metrics |
 | `GET` | `/docs` | OpenAPI documentation |
 
+A [Bruno collection](bruno/url-visit-tracker/README.md) provides local
+environments and an ordered create, visit, and disable workflow for the API.
+
 Create request:
 
 ```json
@@ -429,7 +432,7 @@ Apply formatting:
 uv run ruff format .
 ```
 
-Validate Helm dependencies and rendered manifests:
+Restore the chart dependencies from `Chart.lock`, then lint and render the manifests:
 
 ```bash
 make chart-validate

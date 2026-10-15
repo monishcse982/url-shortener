@@ -1,0 +1,19 @@
+meta {
+  name: 03 Visit public custom
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/link/{{customCode}}
+  body: none
+  auth: none
+}
+
+settings {
+  followRedirects: false
+}
+
+docs {
+  Run 02 first. Inspect the 302 Location header; redirects are not followed.
+}

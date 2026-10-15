@@ -1,0 +1,37 @@
+meta {
+  name: 10 Create visit limited
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/link/
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "url": "{{destinationUrl}}",
+    "ttl_seconds": {{ttlSeconds}},
+    "max_visits": 1,
+    "title": "Bruno one visit link",
+    "policy": {"type": "public"}
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 200) {
+    const shortenedUrl = res.getBody().shortened_url;
+    bru.setVar("limitedUrl", shortenedUrl);
+    bru.setVar("limitedCode", shortenedUrl.split("/").filter(Boolean).pop());
+  }
+}
+
+docs {
+  Creates a link with both TTL and a one-visit limit. Run 11 and 12 next.
+}
