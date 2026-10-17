@@ -370,11 +370,16 @@ make logs
 
 ## Grafana and Prometheus
 
-Print the generated Grafana credentials:
+Print local component credentials:
 
 ```bash
 make grafana-password
+make postgres-password
+make valkey-password
+make kafka-password
 ```
+
+Prometheus has no password in the local stack. `make prometheus-password` confirms this configuration.
 
 Forward Grafana in a dedicated terminal:
 
@@ -526,11 +531,15 @@ make help
 | `make deploy` | Upgrade or install the application stack |
 | `make infra-ready` | Wait for dependencies, synchronize Kafka credentials, and restart the app |
 | `make migration-status` | List Tortoise migration versions recorded in cluster PostgreSQL |
-| `make restart` | Restart and wait for the application Deployment |
+| `make restart` | Restart and wait for the API and UI Deployments |
 | `make logs` | Follow application and consumer logs |
 | `make port-forward LOCAL_PORT=8080` | Expose the API locally |
 | `make monitoring-status` | Show Prometheus and Grafana resources |
 | `make grafana-password` | Print generated Grafana credentials |
+| `make postgres-password` | Print the PostgreSQL application credentials |
+| `make valkey-password` | Print the Valkey password |
+| `make kafka-password` | Print the Kafka application credentials |
+| `make prometheus-password` | Explain local Prometheus access |
 | `make grafana-forward` | Expose Grafana at port 3000 |
 | `make prometheus-forward` | Expose Prometheus at port 9090 |
 | `make uninstall` | Uninstall Helm releases while preserving the Minikube profile |

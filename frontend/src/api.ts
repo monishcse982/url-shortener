@@ -16,7 +16,30 @@ export type ManagedLink = {
   policy_type: 'public' | 'password_protected' | 'ip_restricted'
 }
 export type LinkList = { items: ManagedLink[]; total: number }
-export type CreateLink = { url: string; ttl_seconds: number; short_code?: string }
+export type CreateLink = {
+  url: string
+  ttl_seconds: number
+  short_code?: string
+  title?: string
+  max_visits?: number
+  policy: { type: 'public' } | { type: 'password_protected'; password: string } | { type: 'ip_restricted'; ip_list: string[] }
+}
+
+function errorMessage(detail: unknown, status: number): string {
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail.map(item => {
+      if (typeof item === 'string') return item
+      if (item && typeof item === 'object' && 'msg' in item) {
+        const location = 'loc' in item && Array.isArray(item.loc) ? item.loc.slice(1).join('.') : ''
+        return `${location ? `${location}: ` : ''}${String(item.msg)}`
+      }
+      return 'Invalid request'
+    }).join('; ')
+  }
+  if (detail && typeof detail === 'object' && 'message' in detail) return String(detail.message)
+  return `Request failed (${status})`
+}
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message) }
@@ -33,7 +56,7 @@ export async function api<T>(user: User, path: string, init: RequestInit = {}): 
   })
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
-    throw new ApiError(response.status, body.detail || `Request failed (${response.status})`)
+    throw new ApiError(response.status, errorMessage(body.detail, response.status))
   }
   return response.status === 204 ? undefined as T : response.json() as Promise<T>
 }

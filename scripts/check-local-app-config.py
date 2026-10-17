@@ -6,17 +6,7 @@ import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 
-
-def read_env(path: Path) -> dict[str, str]:
-    if not path.is_file():
-        raise ValueError(f"Missing {path}; see frontend/.env.example and README.md")
-    values = {}
-    for line in path.read_text().splitlines():
-        line = line.strip()
-        if line and not line.startswith("#") and "=" in line:
-            key, value = line.split("=", 1)
-            values[key.strip()] = value.strip().strip('"').strip("'")
-    return values
+from local_env import read_env
 
 
 def required(values: dict[str, str], key: str, path: Path) -> str:
@@ -52,7 +42,8 @@ def main() -> None:
     logout = required(frontend, "VITE_COGNITO_LOGOUT_URI", frontend_path)
     if callback != f"{origin}/auth/callback" or logout != f"{origin}/":
         raise ValueError(
-            f"Set the Cognito callback to {origin}/auth/callback and sign-out to {origin}/"
+            f"Set the Cognito callback to {origin}/auth/callback "
+            f"and sign-out to {origin}/"
         )
     cors = required(backend, "CORS_ORIGINS", backend_path)
     if origin not in (item.strip() for item in cors.split(",")):

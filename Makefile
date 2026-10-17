@@ -48,7 +48,7 @@ PROMETHEUS_PORT ?= 9090
 PORT_FORWARD_FRONTEND ?= 1
 HELM_IMAGE_ARGS = --set-string shawty.image.repository=$(IMAGE) --set-string shawty.image.tag=$(IMAGE_TAG) --set-string frontend.image.repository=$(FRONTEND_IMAGE) --set-string frontend.image.tag=$(FRONTEND_IMAGE_TAG)
 
-.PHONY: help unit-test coverage app-up frontend-deps frontend-env-check infra-up infra-start infra-stop infra-status cluster-up cluster-stop cluster-status image-build image-load validate-env namespace secret postgres-secret valkey-secret kafka-operator monitoring-install monitoring-status grafana-password grafana-forward prometheus-forward chart-deps chart-validate deploy wait-infra sync-kafka-password infra-ready migration-status status logs port-forward port-forward-app port-forward-all diagnose-port-forward restart uninstall cluster-delete makemigrations migrate
+.PHONY: help unit-test coverage app-up frontend-deps frontend-env-check infra-up infra-start infra-stop infra-status cluster-up cluster-stop cluster-status image-build image-load validate-env namespace secret postgres-secret valkey-secret kafka-operator monitoring-install monitoring-status grafana-password postgres-password valkey-password kafka-password prometheus-password grafana-forward prometheus-forward chart-deps chart-validate deploy wait-infra sync-kafka-password infra-ready migration-status status logs port-forward port-forward-app port-forward-all diagnose-port-forward restart uninstall cluster-delete makemigrations migrate
 
 help: ## Show the available commands.
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target> [VARIABLE=value]\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -129,6 +129,18 @@ grafana-password: ## Print the local Grafana username and generated password.
 	@printf "Username: "; $(KUBECTL) get secret $(GRAFANA_SERVICE) --namespace $(MONITORING_NAMESPACE) -o jsonpath='{.data.admin-user}' | base64 --decode; printf '\n'
 	@printf "Password: "; $(KUBECTL) get secret $(GRAFANA_SERVICE) --namespace $(MONITORING_NAMESPACE) -o jsonpath='{.data.admin-password}' | base64 --decode; printf '\n'
 
+postgres-password: ## Print the PostgreSQL application username and password.
+	@set -o pipefail; printf 'Username: shawty_user\nPassword: '; $(KUBECTL) get secret $(POSTGRES_SECRET) --namespace $(NAMESPACE) -o jsonpath='{.data.password}' | base64 --decode || exit $$?; printf '\n'
+
+valkey-password: ## Print the Valkey password.
+	@set -o pipefail; printf 'Password: '; $(KUBECTL) get secret $(VALKEY_SECRET) --namespace $(NAMESPACE) -o jsonpath='{.data.default}' | base64 --decode || exit $$?; printf '\n'
+
+kafka-password: ## Print the Kafka application username and generated password.
+	@set -o pipefail; printf 'Username: $(KAFKA_USER)\nPassword: '; $(KUBECTL) get secret $(KAFKA_USER) --namespace $(NAMESPACE) -o jsonpath='{.data.password}' | base64 --decode || exit $$?; printf '\n'
+
+prometheus-password: ## Explain local Prometheus access (no password configured).
+	@echo 'Prometheus has no password in the local stack; use make prometheus-forward.'
+
 grafana-forward: ## Forward Grafana to localhost.
 	@echo "Grafana: http://localhost:$(GRAFANA_PORT)"
 	$(KUBECTL) port-forward --namespace $(MONITORING_NAMESPACE) service/$(GRAFANA_SERVICE) $(GRAFANA_PORT):80
@@ -208,9 +220,11 @@ diagnose-port-forward: ## Inspect app pod health, endpoints, recent events, and 
 	-$(KUBECTL) logs --namespace $(NAMESPACE) deployment/$(RELEASE) --all-containers=true --tail=100
 	-$(KUBECTL) logs --namespace $(NAMESPACE) deployment/$(RELEASE) --all-containers=true --previous --tail=100
 
-restart: ## Restart the application Deployment.
+restart: ## Restart the API and UI Deployments after local image builds.
 	$(KUBECTL) rollout restart --namespace $(NAMESPACE) deployment/$(RELEASE)
+	$(KUBECTL) rollout restart --namespace $(NAMESPACE) deployment/$(FRONTEND_SERVICE)
 	$(KUBECTL) rollout status --namespace $(NAMESPACE) deployment/$(RELEASE) --timeout=5m
+	$(KUBECTL) rollout status --namespace $(NAMESPACE) deployment/$(FRONTEND_SERVICE) --timeout=5m
 
 uninstall: ## Uninstall the Helm release but preserve the Minikube cluster.
 	-helm uninstall $(RELEASE) $(HELM_CONTEXT) --namespace $(NAMESPACE)

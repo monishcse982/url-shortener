@@ -24,8 +24,9 @@ export function ManageLink() {
   function cancelDisable() { setConfirm(false); requestAnimationFrame(() => disableButton.current?.focus()) }
   function submit(event: FormEvent) {
     event.preventDefault(); setError(null); setSuccess(null)
-    if (!isHttpUrl(destination || '')) { setError('Enter an http:// or https:// URL'); return }
-    save.mutate(destination!)
+    const url = destination ?? link.data?.original_url ?? ''
+    if (!isHttpUrl(url)) { setError('Enter an http:// or https:// URL'); return }
+    save.mutate(url)
   }
   if (link.isPending) return <main className="content-page"><BrailleSpinner /> loading link</main>
   if (link.error) {

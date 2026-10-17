@@ -10,8 +10,10 @@ export default function DotOrb() {
     let frame = 0
     let phase = 0
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; if (visible && !reduced) draw() })
-    const onVisibility = () => { if (!document.hidden && visible && !reduced) draw() }
+    const start = () => { if (!reduced && visible && !document.hidden && !frame) draw() }
+    const stop = () => { if (frame) cancelAnimationFrame(frame); frame = 0 }
+    const observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; if (visible) start(); else stop() })
+    const onVisibility = () => { if (document.hidden) stop(); else start() }
     observer.observe(element)
     document.addEventListener('visibilitychange', onVisibility)
     function draw() {
@@ -36,10 +38,10 @@ export default function DotOrb() {
       }
       context.globalAlpha = 1
       phase += 0.009
-      if (!reduced && visible && !document.hidden) frame = requestAnimationFrame(draw)
+      if (!reduced && visible && !document.hidden) frame = requestAnimationFrame(() => { frame = 0; draw() })
     }
     draw()
-    return () => { observer.disconnect(); document.removeEventListener('visibilitychange', onVisibility); cancelAnimationFrame(frame) }
+    return () => { observer.disconnect(); document.removeEventListener('visibilitychange', onVisibility); stop() }
   }, [])
   return <canvas ref={canvas} className="dot-orb" width="300" height="300" aria-hidden="true" />
 }

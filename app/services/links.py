@@ -259,6 +259,16 @@ class LinksService:
             link=link,
             ttl_seconds=min(settings.cache_ttl, remaining_ttl),
         )
+        # A destination edit or disable may have invalidated the cache after
+        # this request read the row but before it filled the cache. Recheck
+        # after writing so an older value cannot survive that invalidation.
+        current = await self.links_repository.find_by_short_code(str(link.short_code))
+        if (
+            current is None
+            or current.is_deleted
+            or current.original_url != link.original_url
+        ):
+            await self.invalidate_cached_link(str(link.short_code))
 
     async def _admit_visit_if_limited(self, link: Link) -> None:
         if link.max_visits is None:
@@ -444,12 +454,12 @@ class LinksService:
         policy_type = policy.get("type", "public")
         if policy_type not in LinkPolicyType._value2member_map_:
             policy_type = "public"
-        if link.is_deleted:
-            status = "disabled"
-        elif link.expires_at is not None and link.expires_at <= datetime.now(UTC):
+        if link.expires_at is not None and link.expires_at <= datetime.now(UTC):
             status = "expired"
         elif link.max_visits is not None and link.visit_count >= link.max_visits:
             status = "exhausted"
+        elif link.is_deleted:
+            status = "disabled"
         else:
             status = "active"
         return ManagedLink(

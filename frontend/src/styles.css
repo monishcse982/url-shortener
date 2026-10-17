@@ -19,7 +19,7 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
-button, input { font: inherit; }
+button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: wait; opacity: .65; }
 a { color: var(--accent); text-decoration: none; }
@@ -35,7 +35,9 @@ a:hover { text-decoration: underline; }
 .button-danger { color: var(--error); border-color: var(--error); }
 .button-danger:hover { background: var(--error); color: var(--bg); }
 .field { display: flex; flex-direction: column; gap: 8px; color: var(--text-dim); }
-.field input { width: 100%; min-height: 44px; background: var(--bg); border: 1px solid var(--border-hi); border-radius: 0; color: var(--text); padding: 10px 12px; }
+.field input, .field select, .field textarea { width: 100%; min-height: 44px; background: var(--bg); border: 1px solid var(--border-hi); border-radius: 0; color: var(--text); padding: 10px 12px; }
+.field textarea { resize: vertical; }
+.field small { font-size: 12px; }
 .field input::placeholder { color: var(--text-dim); opacity: .7; }
 .badge { display: inline-block; padding: 2px 7px; border: 1px solid var(--text-dim); color: var(--text-dim); font-size: 11px; line-height: 1.4; }
 .badge-active { color: var(--success); border-color: var(--success); }
