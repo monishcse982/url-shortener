@@ -10,4 +10,5 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 cd "$repo_root"
-uv run --locked python -m unittest discover -s tests/unit -v
+uv run --locked coverage run -m unittest discover -s tests/unit -v
+uv run --locked coverage report
