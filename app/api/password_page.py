@@ -92,7 +92,7 @@ def password_page(short_code: str, *, invalid: bool = False) -> HTMLResponse:
             "Cache-Control": "no-store",
             "Content-Security-Policy": (
                 "default-src 'none'; style-src 'unsafe-inline'; "
-                "form-action 'self'; base-uri 'none'"
+                "form-action 'self' http: https:; base-uri 'none'"
             ),
             "Referrer-Policy": "no-referrer",
             "X-Content-Type-Options": "nosniff",
