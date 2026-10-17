@@ -31,5 +31,6 @@ __pycache__
 .envrc
 
 deploy
+frontend
 reports
 tests

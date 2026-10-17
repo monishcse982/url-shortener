@@ -3,7 +3,13 @@ from urllib.parse import urlparse
 
 from locust import HttpUser, constant, task
 
-from tests.load.link_cases import LINK_CASES, VISIT_LIMIT, policy_for, visit_headers_for
+from tests.load.link_cases import (
+    LINK_CASES,
+    VISIT_LIMIT,
+    creation_headers,
+    policy_for,
+    visit_headers_for,
+)
 
 
 class HappyPathMaxVisitsUser(HttpUser):
@@ -58,6 +64,7 @@ class HappyPathMaxVisitsUser(HttpUser):
             name=f"POST /link/ [{case_name}]",
             catch_response=True,
             json=payload,
+            headers=creation_headers(),
         ) as response:
             if response.status_code != 200:
                 response.failure(

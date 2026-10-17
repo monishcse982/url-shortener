@@ -1,4 +1,4 @@
-# URL Visit Tracker
+# Shawty
 
 A FastAPI URL shortener built as a small event-driven system. It creates short links, redirects visitors, publishes visit events to Kafka, and persists visit details asynchronously in PostgreSQL. The repository also includes local Kubernetes deployment, Prometheus/Grafana observability, and repeatable Locust load profiles.
 
@@ -33,7 +33,7 @@ The next planned capabilities are documented in [docs/roadmap.md](docs/roadmap.m
 - Declaratively managed `link.visited` and `link.visited.dlq` topics.
 - Prometheus Operator, Prometheus, Grafana, kube-state-metrics, and node exporter.
 - Persistent Prometheus storage with two-day retention and a 4 GiB data cap.
-- Automatically provisioned URL Visit Tracker Grafana dashboard.
+- Automatically provisioned Shawty Grafana dashboard.
 
 ### Tests
 
@@ -49,8 +49,9 @@ and combined expiry/visit-limit settings. Each completed creation task creates
 one link per combination; each visit task visits each combination once. The
 complete-flow task creates each combination and attempts eleven visits per link,
 checking the final redirect or visit-limit response.
-Password protected redirects require a `password` request header on every
-visit. IP restricted redirects allow only configured addresses or CIDR ranges.
+Password protected links show a browser unlock form. API callers can send a
+`password` request header on every visit. IP restricted redirects allow only
+configured addresses or CIDR ranges.
 The load scenarios allow both IPv4 and IPv6 runner addresses for their IP
 restricted cases; unit tests cover specific allowed and denied addresses.
 
@@ -94,13 +95,31 @@ The Kafka consumer currently starts inside the FastAPI process during applicatio
 | --- | --- | --- |
 | `POST` | `/link/` | Create a short link |
 | `GET` | `/link/{short_code}` | Record a visit and return a redirect |
-| `DELETE` | `/link/{short_code}` | Soft delete an active short link |
+| `GET` | `/links` | List the signed-in user's links (`limit`, `offset`) |
+| `GET` | `/links/{short_code}` | Get a managed link |
+| `PATCH` | `/links/{short_code}` | Edit a destination (`{"url": "https://..."}`) |
+| `DELETE` | `/links/{short_code}` | Disable the signed-in user's link |
 | `GET` | `/dummy-target` | Return a small test response |
 | `GET` | `/metrics` | Expose Prometheus metrics |
 | `GET` | `/docs` | OpenAPI documentation |
 
-A [Bruno collection](bruno/url-visit-tracker/README.md) provides local
+A [Bruno collection](bruno/shawty/README.md) provides local
 environments and an ordered create, visit, and disable workflow for the API.
+
+Creating and managing links requires a Cognito user access token in the
+`Authorization: Bearer <access-token>` header. Redirects remain public. The API
+validates the JWT signature, issuer, app client ID, expiration, and token type.
+`GET /links` includes disabled links and returns `{"items": [...], "total": N}`.
+Management responses include the policy type, but never password hashes or IP
+allowlists. This schema starts with a required owner for every link. If an older
+database already recorded `0001_initial`, recreate the database (including its
+`tortoise_migrations` table) before deploying this version; deleting only link
+rows will not rerun the initial migration. For the disposable Minikube setup,
+`make cluster-delete CONFIRM=delete` followed by `make infra-up` rebuilds it.
+
+The [React frontend](frontend/README.md) provides sign-in, link creation,
+listing, destination editing, and disable confirmation. Its implementation
+tracking is in [docs/cognito-management-ui-plan.md](docs/cognito-management-ui-plan.md).
 
 Create request:
 
@@ -124,6 +143,7 @@ Create request:
 - Minikube
 - kubectl
 - Helm
+- Node.js and npm only when running the UI outside Docker
 - curl and jq for the examples below
 
 Verify the local tools:
@@ -135,6 +155,8 @@ docker info
 minikube version
 kubectl version --client
 helm version
+node --version
+npm --version
 ```
 
 Install Python dependencies:
@@ -152,40 +174,57 @@ APP_SCHEME=http
 APP_HOST=localhost
 APP_PORT=8080
 
-DATABASE_URL=postgresql+asyncpg://url_tracker_user:<postgres-password>@url-visit-tracker-stack-postgresql:5432/url_visit_tracker
-MIGRATION_DATABASE_URL=postgresql+asyncpg://url_tracker_user:<postgres-password>@url-visit-tracker-stack-postgresql:5432/url_visit_tracker
+DATABASE_URL=postgresql+asyncpg://shawty_user:<postgres-password>@shawty-stack-postgresql:5432/shawty
+MIGRATION_DATABASE_URL=postgresql+asyncpg://shawty_user:<postgres-password>@shawty-stack-postgresql:5432/shawty
 
-KAFKA_BOOTSTRAP_SERVERS=url-tracker-kafka-bootstrap:9092
+KAFKA_BOOTSTRAP_SERVERS=shawty-kafka-bootstrap:9092
 KAFKA_SECURITY_PROTOCOL=SASL_PLAINTEXT
 KAFKA_SASL_MECHANISM=SCRAM-SHA-512
-KAFKA_USERNAME=url-tracker-user
+KAFKA_USERNAME=shawty-user
 KAFKA_PASSWORD=generated-by-strimzi
-KAFKA_CLIENT_ID=url-visit-tracker-api
-KAFKA_CONSUMER_GROUP_ID=url-visit-tracker-visits
+KAFKA_CLIENT_ID=shawty-api
+KAFKA_CONSUMER_GROUP_ID=shawty-visits
 KAFKA_VISIT_TOPIC=link.visited
 KAFKA_VISIT_DLQ_TOPIC=link.visited.dlq
 
+CACHE_URL=redis://default:<valkey-password>@valkey:6379/0
+CACHE_TTL=600
+
 LOG_LEVEL=INFO
 LOG_FORMAT=json
+COGNITO_ISSUER=https://cognito-idp.ap-south-2.amazonaws.com/<user-pool-id>
+COGNITO_CLIENT_ID=<public-spa-client-id>
+CORS_ORIGINS=http://localhost:5173
 ```
 
 Use a URL-safe PostgreSQL password or URL-encode it in both database URLs. The Makefile extracts this password to create the PostgreSQL Secret. Strimzi generates the real Kafka password, and `make infra-up` copies it into the application Secret before restarting the application.
 
-## Start the Complete Stack
+## Start Shawty with the UI
 
-Validate configuration:
+Set up `frontend/.env.local` from [frontend/.env.example](frontend/.env.example).
+Its API URL must be `http://localhost:8080`, and its Cognito issuer and client
+ID must match `.env.kubernetes`. Register
+`http://localhost:5173/auth/callback` and `http://localhost:5173/` in the
+Cognito SPA client as the callback and sign-out URLs.
+
+Start the full local application:
 
 ```bash
-make validate-env
+make app-up
 ```
 
-Build the image, create or start Minikube, install infrastructure, run the Tortoise migration Job, deploy the application, synchronize credentials, and wait for readiness:
+This checks that UI, API, CORS, and Cognito settings match, builds API and
+static UI images, deploys both, applies the migration, and starts local port
+forwards. Keep the command running and open
+**<http://localhost:5173/>**. Press `Ctrl+C` to stop the local servers and
+forwards; Minikube keeps running. The first deployment can take several
+minutes while images and charts download.
+
+For backend infrastructure only, run:
 
 ```bash
 make infra-up
 ```
-
-The first run can take several minutes while container images and Helm charts are downloaded.
 
 Check everything:
 
@@ -197,8 +236,8 @@ make migration-status
 Useful direct checks:
 
 ```bash
-kubectl --context minikube get pods -n url-tracker
-kubectl --context minikube get kafka,kafkauser,kafkatopic -n url-tracker
+kubectl --context minikube get pods -n shawty
+kubectl --context minikube get kafka,kafkauser,kafkatopic -n shawty
 kubectl --context minikube get pods -n observability
 ```
 
@@ -221,7 +260,9 @@ Keep the application and local dependency tunnels open in a separate terminal:
 make port-forward-all
 ```
 
-This forwards the application, PostgreSQL, Valkey, Grafana, and Prometheus. Press `Ctrl+C` in that terminal to stop the forwards. To forward only the app, use `make port-forward-app`.
+This serves the UI and forwards the API, PostgreSQL, Valkey, Grafana, and
+Prometheus. Press `Ctrl+C` in that terminal to stop the local processes. To
+forward only the API, use `make port-forward-app`.
 
 When finished, stop Minikube without deleting its cluster data:
 
@@ -238,7 +279,9 @@ make image-load
 make restart
 ```
 
-`image-load` starts Minikube if needed, builds `url-visit-tracker:local`, and loads it into the cluster. It does not restart the running application by itself.
+`image-load` starts Minikube if needed, builds `shawty:local` and
+`shawty-ui:local`, and loads both into the cluster. It does not restart the
+running Deployments by itself.
 
 ### Apply configuration or chart changes
 
@@ -255,7 +298,7 @@ If you changed values stored in Secrets, restart the application afterward so it
 make restart
 ```
 
-`make deploy` also refreshes the application, PostgreSQL, and Valkey Secrets from `$(ENV_FILE)`, installs or upgrades Strimzi and monitoring, validates the charts, and upgrades the application release. The application chart runs Tortoise migrations in a Helm Job after PostgreSQL is ready on first install and before application upgrades. Helm waits for this Job to complete; a failed migration fails the deployment. The PostgreSQL chart does not create application tables itself; Tortoise migration files are the schema source of truth. For standalone local development, `make migrate` applies migrations using `MIGRATION_DATABASE_URL` from the local `.env` (or the shell environment). Use `make migration-status` after deployment to list the versions recorded by Tortoise in the cluster database.
+`make deploy` also refreshes the application, PostgreSQL, and Valkey Secrets from `$(ENV_FILE)`, installs or upgrades Strimzi and monitoring, validates the charts, and upgrades the application release. The application chart runs Tortoise migrations in a Helm Job after PostgreSQL is ready on first install and before application upgrades. The API's readiness endpoint stays unavailable until the migration is recorded. Helm waits for the migration Job; a failed migration fails the deployment. The PostgreSQL chart does not create application tables itself; Tortoise migration files are the schema source of truth. For standalone local development, `make migrate` applies migrations using `MIGRATION_DATABASE_URL` from the local `.env` (or the shell environment). Use `make migration-status` after deployment to list the versions recorded by Tortoise in the cluster database.
 
 ### Inspect and troubleshoot
 
@@ -296,6 +339,7 @@ make port-forward-all LOCAL_PORT=8080
 
 Available locally:
 
+- Shawty UI: <http://localhost:5173/> (with `make app-up` or `make port-forward-all`)
 - API: <http://localhost:8080>
 - OpenAPI: <http://localhost:8080/docs>
 - Metrics: <http://localhost:8080/metrics>
@@ -305,6 +349,7 @@ Create and visit a link:
 ```bash
 response=$(curl -fsS -X POST http://localhost:8080/link/ \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
   -d '{
     "url": "https://example.com",
     "ttl_seconds": 3600,
@@ -326,11 +371,16 @@ make logs
 
 ## Grafana and Prometheus
 
-Print the generated Grafana credentials:
+Print local component credentials:
 
 ```bash
 make grafana-password
+make postgres-password
+make valkey-password
+make kafka-password
 ```
+
+Prometheus has no password in the local stack. `make prometheus-password` confirms this configuration.
 
 Forward Grafana in a dedicated terminal:
 
@@ -338,7 +388,7 @@ Forward Grafana in a dedicated terminal:
 make grafana-forward
 ```
 
-Open <http://localhost:3000> and select the **URL Visit Tracker** dashboard.
+Open <http://localhost:3000> and select the **Shawty** dashboard.
 
 Forward Prometheus in another terminal:
 
@@ -349,7 +399,7 @@ make prometheus-forward
 Open <http://localhost:9090>. A useful target query is:
 
 ```promql
-up{namespace="url-tracker", service="url-visit-tracker-stack"}
+up{namespace="shawty", service="shawty-stack"}
 ```
 
 The local profile defaults to four CPUs, 8 GiB of memory, and a 25 GiB disk.
@@ -371,7 +421,7 @@ transferred.
 The Helm release creates Strimzi `KafkaTopic` resources. The Strimzi Topic Operator then creates the broker topics automatically.
 
 ```bash
-kubectl --context minikube get kafkatopics -n url-tracker
+kubectl --context minikube get kafkatopics -n shawty
 ```
 
 Wait for both topics:
@@ -381,7 +431,7 @@ kubectl --context minikube wait \
   --for=condition=Ready \
   kafkatopic/link-visited \
   kafkatopic/link-visited-dlq \
-  -n url-tracker \
+  -n shawty \
   --timeout=60s
 ```
 
@@ -400,7 +450,7 @@ List presets:
 Run a preset:
 
 ```bash
-./tests/load/run-load-test.sh happy_path_ramp_user_100user_5minutes
+LOAD_ACCESS_TOKEN='<Cognito user access token>' ./tests/load/run-load-test.sh happy_path_ramp_user_100user_5minutes
 ```
 
 Available presets:
@@ -471,6 +521,7 @@ make help
 
 | Command | Purpose |
 | --- | --- |
+| `make app-up` | Deploy the full stack and serve the UI locally |
 | `make infra-up` | Build, deploy, synchronize secrets, and wait for the complete stack |
 | `make infra-start` | Start an existing stopped Minikube profile |
 | `make infra-stop` | Stop Minikube while preserving cluster state |
@@ -481,11 +532,15 @@ make help
 | `make deploy` | Upgrade or install the application stack |
 | `make infra-ready` | Wait for dependencies, synchronize Kafka credentials, and restart the app |
 | `make migration-status` | List Tortoise migration versions recorded in cluster PostgreSQL |
-| `make restart` | Restart and wait for the application Deployment |
+| `make restart` | Restart and wait for the API and UI Deployments |
 | `make logs` | Follow application and consumer logs |
 | `make port-forward LOCAL_PORT=8080` | Expose the API locally |
 | `make monitoring-status` | Show Prometheus and Grafana resources |
 | `make grafana-password` | Print generated Grafana credentials |
+| `make postgres-password` | Print the PostgreSQL application credentials |
+| `make valkey-password` | Print the Valkey password |
+| `make kafka-password` | Print the Kafka application credentials |
+| `make prometheus-password` | Explain local Prometheus access |
 | `make grafana-forward` | Expose Grafana at port 3000 |
 | `make prometheus-forward` | Expose Prometheus at port 9090 |
 | `make uninstall` | Uninstall Helm releases while preserving the Minikube profile |

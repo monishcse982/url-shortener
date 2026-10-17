@@ -1,0 +1,42 @@
+{{- if .Values.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-migrate" (include "shawty.fullname" .) | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "shawty.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,pre-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: {{ .Values.migrations.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "shawty.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      containers:
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              case "${MIGRATION_DATABASE_URL:-}" in
+                postgres://*|postgresql://*|postgresql+asyncpg://*) ;;
+                *) echo "MIGRATION_DATABASE_URL must point to PostgreSQL" >&2; exit 1 ;;
+              esac
+              python -m app.db.wait_for_database
+              exec tortoise -c app.core.config.TORTOISE_ORM migrate
+          envFrom:
+            - secretRef:
+                name: {{ .Values.migrations.envSecretName }}
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+{{- end }}

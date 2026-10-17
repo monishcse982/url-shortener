@@ -3,7 +3,12 @@ from urllib.parse import urlparse
 
 from locust import HttpUser, constant, task
 
-from tests.load.link_cases import LINK_CASES, policy_for, visit_headers_for
+from tests.load.link_cases import (
+    LINK_CASES,
+    creation_headers,
+    policy_for,
+    visit_headers_for,
+)
 
 
 class VisitShortLinkUser(HttpUser):
@@ -64,6 +69,7 @@ class VisitShortLinkUser(HttpUser):
             "/link/",
             name=f"POST /link/ setup [{case_name}]",
             json=payload,
+            headers=creation_headers(),
         )
         response.raise_for_status()
 

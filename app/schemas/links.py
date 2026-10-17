@@ -56,10 +56,35 @@ class ShortenRequest(BaseModel):
         max_length=32,
         pattern=r"^[a-zA-Z0-9_-]+$",
     )
-    url: HttpUrl
+    url: HttpUrl = Field(max_length=2048)
     policy: LinkPolicy = Field(default_factory=LinkPolicy)
 
 
 class ShortenResponse(BaseModel):
     shortened_url: str
     expires_at: datetime
+
+
+class LinkUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    url: HttpUrl = Field(max_length=2048)
+
+
+class ManagedLink(BaseModel):
+    id: int
+    short_code: str
+    shortened_url: str
+    original_url: str
+    title: str | None
+    created_at: datetime
+    expires_at: datetime | None
+    visit_count: int
+    max_visits: int | None
+    status: str
+    policy_type: LinkPolicyType
+
+
+class ManagedLinkList(BaseModel):
+    items: list[ManagedLink]
+    total: int

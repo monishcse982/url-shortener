@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "name": "Shawty",
+  "type": "collection",
+  "defaultEnvironment": "Local 8080",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

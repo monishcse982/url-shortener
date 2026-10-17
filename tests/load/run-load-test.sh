@@ -84,6 +84,7 @@ fi
 
 : "${SCENARIO_FILE:?SCENARIO_FILE is required in $PRESET_FILE}"
 : "${PATTERN_FILE:?PATTERN_FILE is required in $PRESET_FILE}"
+: "${LOAD_ACCESS_TOKEN:?Set LOAD_ACCESS_TOKEN to a Cognito user access token before running a load test}"
 
 SCENARIO_PATH="$SCRIPT_DIR/scenarios/$SCENARIO_FILE"
 PATTERN_PATH="$SCRIPT_DIR/patterns/$PATTERN_FILE"

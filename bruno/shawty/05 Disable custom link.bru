@@ -1,0 +1,19 @@
+meta {
+  name: 05 Disable custom link
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/links/{{customCode}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+docs {
+  Run 02 first. Expected 204. This soft deletes the custom link.
+}

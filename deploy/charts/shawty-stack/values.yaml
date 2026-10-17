@@ -1,0 +1,122 @@
+shawty:
+  enabled: true
+
+  replicaCount: 1
+
+  image:
+    repository: shawty
+    pullPolicy: Never
+    tag: local
+
+  migrations:
+    enabled: true
+    envSecretName: shawty-env
+    activeDeadlineSeconds: 240
+
+  service:
+    type: ClusterIP
+    port: 8000
+
+  livenessProbe:
+    httpGet:
+      path: /metrics
+      port: http
+
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: http
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+  monitoring:
+    serviceMonitor:
+      enabled: true
+      interval: 15s
+    dashboard:
+      enabled: true
+
+frontend:
+  enabled: true
+  image:
+    repository: shawty-ui
+    tag: local
+    pullPolicy: Never
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+postgresql:
+  enabled: true
+
+  auth:
+    existingSecret: shawty-postgresql
+    username: shawty_user
+    database: shawty
+
+  primary:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+    persistence:
+      enabled: true
+      size: 2Gi
+
+valkey:
+  enabled: true
+  fullnameOverride: valkey
+
+  auth:
+    enabled: true
+    usersExistingSecret: shawty-valkey
+    aclUsers:
+      default:
+        permissions: "~* &* +@all"
+        passwordKey: default
+
+  dataStorage:
+    enabled: true
+    requestedSize: 1Gi
+    keepPvc: true
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+  metrics:
+    enabled: true
+    exporter:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
+    serviceMonitor:
+      enabled: true
+      interval: 15s
+
+kafka:
+  enabled: true
+  clusterName: shawty
+  userName: shawty-user
+  storageSize: 2Gi

@@ -2,7 +2,7 @@ import random
 
 from locust import HttpUser, constant, task
 
-from tests.load.link_cases import LINK_CASES, policy_for
+from tests.load.link_cases import LINK_CASES, creation_headers, policy_for
 
 
 class CreateShortLinkUser(HttpUser):
@@ -28,6 +28,7 @@ class CreateShortLinkUser(HttpUser):
                 name=f"POST /link/ [{case_name}]",
                 catch_response=True,
                 json=payload,
+                headers=creation_headers(),
             ) as response:
                 if response.status_code == 200:
                     response.success()

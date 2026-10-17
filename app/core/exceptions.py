@@ -29,6 +29,22 @@ class UnauthorizedError(ApplicationError):
         super().__init__(message)
 
 
+class LinkPasswordRequiredError(UnauthorizedError):
+    """A browser can offer a password form for this redirect."""
+
+
+class InvalidLinkPasswordError(UnauthorizedError):
+    """A browser can retry a password protected redirect."""
+
+
+class ForbiddenError(ApplicationError):
+    code = "forbidden"
+    status_code = HTTPStatus.FORBIDDEN
+
+    def __init__(self) -> None:
+        super().__init__("You do not have access to this link")
+
+
 class ShortCodeConflictError(ApplicationError):
     code = "short_code_already_exists"
     status_code = HTTPStatus.BAD_REQUEST

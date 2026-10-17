@@ -1,0 +1,39 @@
+meta {
+  name: 09 Create IP restricted
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/link/
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "url": "{{destinationUrl}}",
+    "ttl_seconds": {{ttlSeconds}},
+    "title": "Bruno IP link",
+    "policy": {
+      "type": "ip_restricted",
+      "ip_list": ["{{allowedIp}}"]
+    }
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 200) {
+    bru.setVar("ipRestrictedUrl", res.getBody().shortened_url);
+  }
+}
+
+docs {
+  The allowlist accepts addresses and CIDRs. Redirect IP admission is not yet
+  implemented by the API.
+}

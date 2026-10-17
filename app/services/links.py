@@ -15,6 +15,9 @@ from tortoise.exceptions import IntegrityError
 from app.core.config import settings
 from app.core.exceptions import (
     ApplicationError,
+    ForbiddenError,
+    InvalidLinkPasswordError,
+    LinkPasswordRequiredError,
     ResourceGoneError,
     ResourceNotFoundError,
     ShortCodeConflictError,
@@ -34,7 +37,13 @@ from app.db.repositories.links import LinksRepository
 from app.kafka.events import LinkVisitedEvent, event_to_bytes
 from app.kafka.producer import KafkaProducer
 from app.kafka.topics import LINK_VISITED_TOPIC
-from app.schemas.links import ShortenRequest, ShortenResponse
+from app.schemas.links import (
+    LinkPolicyType,
+    ManagedLink,
+    ManagedLinkList,
+    ShortenRequest,
+    ShortenResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +59,9 @@ class LinksService:
         self.kafka_producer = kafka_producer
         self.cache = cache
 
-    async def shorten_url(self, request: ShortenRequest) -> ShortenResponse:
+    async def shorten_url(
+        self, request: ShortenRequest, owner_sub: str
+    ) -> ShortenResponse:
         short_links_creation_requests.inc()
         with short_links_create_duration_seconds.time():
             try:
@@ -80,6 +91,7 @@ class LinksService:
                             max_visits=request.max_visits,
                             expires_at=expires_at,
                             policy=policy_config,
+                            owner_sub=owner_sub,
                         )
                         break
                     except IntegrityError:
@@ -173,14 +185,21 @@ class LinksService:
             ) from None
         stored_password = policy.get("password")
         if stored_password is not None:
-            if not isinstance(stored_password, str) or password is None:
-                raise UnauthorizedError(
+            if password is None:
+                raise LinkPasswordRequiredError(
                     message=(
                         f"Password required for short link short_code={link.short_code}"
                     )
                 ) from None
-            if not LinksService._verify_password(password, stored_password):
+            if not isinstance(stored_password, str):
                 raise UnauthorizedError(
+                    message=(
+                        "Invalid access policy for short link "
+                        f"short_code={link.short_code}"
+                    )
+                ) from None
+            if not LinksService._verify_password(password, stored_password):
+                raise InvalidLinkPasswordError(
                     message=(
                         f"Invalid password for short link short_code={link.short_code}"
                     )
@@ -249,6 +268,16 @@ class LinksService:
             link=link,
             ttl_seconds=min(settings.cache_ttl, remaining_ttl),
         )
+        # A destination edit or disable may have invalidated the cache after
+        # this request read the row but before it filled the cache. Recheck
+        # after writing so an older value cannot survive that invalidation.
+        current = await self.links_repository.find_by_short_code(str(link.short_code))
+        if (
+            current is None
+            or current.is_deleted
+            or current.original_url != link.original_url
+        ):
+            await self.invalidate_cached_link(str(link.short_code))
 
     async def _admit_visit_if_limited(self, link: Link) -> None:
         if link.max_visits is None:
@@ -370,11 +399,42 @@ class LinksService:
             await self.invalidate_cached_link(short_code)
             return None
 
-    async def disable_shortened_url(self, short_code: str) -> None:
-        logger.info("Disabling short link short_code=%s", short_code)
-        link = await self.links_repository.soft_delete_by_short_code(
-            short_code=short_code,
+    async def list_managed_links(
+        self, owner_sub: str, *, limit: int, offset: int
+    ) -> ManagedLinkList:
+        links, total = await self.links_repository.list_by_owner(
+            owner_sub, limit=limit, offset=offset
         )
+        return ManagedLinkList(
+            items=[self._managed_link(link) for link in links], total=total
+        )
+
+    async def get_managed_link(self, short_code: str, owner_sub: str) -> ManagedLink:
+        link = await self._owned_link(short_code, owner_sub)
+        return self._managed_link(link)
+
+    async def update_destination(
+        self, short_code: str, owner_sub: str, original_url: str
+    ) -> ManagedLink:
+        link = await self._owned_link(short_code, owner_sub)
+        if self._managed_link(link).status != "active":
+            raise ResourceGoneError(
+                resource="Short link", identifier=short_code, reason="Link is disabled"
+            )
+        updated = await self.links_repository.update_destination(
+            short_code, owner_sub, original_url
+        )
+        if updated is None:
+            raise ResourceGoneError(
+                resource="Short link", identifier=short_code, reason="Link is disabled"
+            )
+        await self.invalidate_cached_link(short_code)
+        return self._managed_link(updated)
+
+    async def disable_shortened_url(self, short_code: str, owner_sub: str) -> None:
+        logger.info("Disabling short link short_code=%s", short_code)
+        await self._owned_link(short_code, owner_sub)
+        link = await self.links_repository.soft_delete_owned(short_code, owner_sub)
 
         if link is None:
             raise ResourceNotFoundError(
@@ -387,6 +447,42 @@ class LinksService:
             "Short link disabled link_id=%s short_code=%s",
             link.id,
             link.short_code,
+        )
+
+    async def _owned_link(self, short_code: str, owner_sub: str) -> Link:
+        link = await self.links_repository.find_by_short_code(short_code)
+        if link is None or link.owner_sub is None:
+            raise ResourceNotFoundError(resource="Short link", identifier=short_code)
+        if link.owner_sub != owner_sub:
+            raise ForbiddenError()
+        return link
+
+    @staticmethod
+    def _managed_link(link: Link) -> ManagedLink:
+        policy = link.policy if isinstance(link.policy, dict) else {}
+        policy_type = policy.get("type", "public")
+        if policy_type not in LinkPolicyType._value2member_map_:
+            policy_type = "public"
+        if link.expires_at is not None and link.expires_at <= datetime.now(UTC):
+            status = "expired"
+        elif link.max_visits is not None and link.visit_count >= link.max_visits:
+            status = "exhausted"
+        elif link.is_deleted:
+            status = "disabled"
+        else:
+            status = "active"
+        return ManagedLink(
+            id=link.id,
+            short_code=link.short_code,
+            shortened_url=f"{settings.base_url}/link/{link.short_code}",
+            original_url=link.original_url,
+            title=link.title,
+            created_at=link.created_at,
+            expires_at=link.expires_at,
+            visit_count=link.visit_count,
+            max_visits=link.max_visits,
+            status=status,
+            policy_type=policy_type,
         )
 
     async def _soft_delete_link(self, link: Link) -> None:

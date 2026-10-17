@@ -28,6 +28,7 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
         expires_at=None,
         max_visits=None,
         policy=None,
+        owner_sub="user-1",
     ):
         return await LinksRepository.create(
             short_code=short_code,
@@ -36,6 +37,7 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
             title=None,
             max_visits=max_visits,
             policy=policy or {"type": "public"},
+            owner_sub=owner_sub,
         )
 
     async def test_create_and_lookup_only_return_active_link(self):
@@ -103,3 +105,31 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(visit.referrer, "https://example.com/referrer")
         self.assertEqual(visit.ip_address, "192.0.2.5")
         self.assertIsNotNone(visit.visited_at)
+
+    async def test_management_mutations_are_owner_scoped(self):
+        own = await self.create_link(owner_sub="user-1")
+        other = await self.create_link(short_code="other-code", owner_sub="user-2")
+
+        links, total = await LinksRepository.list_by_owner(
+            "user-1", limit=100, offset=0
+        )
+        self.assertEqual(total, 1)
+        self.assertEqual([link.id for link in links], [own.id])
+        self.assertIsNone(
+            await LinksRepository.update_destination(
+                "other-code", "user-1", "https://wrong.example"
+            )
+        )
+        self.assertIsNone(
+            await LinksRepository.soft_delete_owned("other-code", "user-1")
+        )
+        self.assertEqual(
+            (await LinksRepository.find_by_short_code("other-code")).id, other.id
+        )
+
+        changed = await LinksRepository.update_destination(
+            "example-code", "user-1", "https://new.example"
+        )
+        self.assertEqual(changed.original_url, "https://new.example")
+        deleted = await LinksRepository.soft_delete_owned("example-code", "user-1")
+        self.assertTrue(deleted.is_deleted)
