@@ -13,14 +13,17 @@ class Settings(BaseSettings):
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_security_protocol: str = "SASL_PLAINTEXT"
     kafka_sasl_mechanism: str = "PLAIN"
-    kafka_username: str = "url_tracker_user"
+    kafka_username: str = "shawty_user"
     kafka_password: str = ""
-    kafka_client_id: str = "url-visit-tracker-api"
-    kafka_consumer_group_id: str = "url-visit-tracker-visits"
+    kafka_client_id: str = "shawty-api"
+    kafka_consumer_group_id: str = "shawty-visits"
     kafka_visit_topic: str = "link.visited"
     kafka_visit_dlq_topic: str = "link.visited.dlq"
     cache_url: str = "redis://redis:6379"
     cache_ttl: int = 600
+    cognito_issuer: str = ""
+    cognito_client_id: str = ""
+    cors_origins: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

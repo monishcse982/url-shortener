@@ -71,7 +71,7 @@ class SettingsTests(unittest.TestCase):
             patch(
                 "app.kafka.config.settings.kafka_bootstrap_servers", "localhost:9092"
             ),
-            patch("app.kafka.config.settings.kafka_client_id", "url-visit-tracker-api"),
+            patch("app.kafka.config.settings.kafka_client_id", "shawty-api"),
             patch("app.kafka.config.settings.kafka_security_protocol", ""),
             patch("app.kafka.config.settings.kafka_sasl_mechanism", ""),
             patch("app.kafka.config.settings.kafka_username", ""),
@@ -80,7 +80,7 @@ class SettingsTests(unittest.TestCase):
             config = kafka_producer_config()
 
         self.assertEqual(config["bootstrap.servers"], "localhost:9092")
-        self.assertEqual(config["client.id"], "url-visit-tracker-api")
+        self.assertEqual(config["client.id"], "shawty-api")
         self.assertNotIn("security.protocol", config)
         self.assertNotIn("sasl.mechanism", config)
         self.assertNotIn("sasl.username", config)

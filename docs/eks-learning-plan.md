@@ -1,4 +1,4 @@
-# EKS learning plan for URL Visit Tracker
+# EKS learning plan for Shawty
 
 This is a hands-on plan for running the existing application stack on Amazon EKS from a GitHub-hosted repository. The first cluster is disposable: create it for a focused learning session, keep any wanted reports outside the cluster, and delete it afterward. No AWS resources or GitHub workflows have been created by this plan.
 

@@ -1,4 +1,4 @@
-# URL Visit Tracker Roadmap
+# Shawty Roadmap
 
 This roadmap focuses on behavior and correctness rather than additional analytics. The work starts with an explicit disable operation, then strengthens the redirect path before adding caching and richer link policies.
 
@@ -7,10 +7,10 @@ This roadmap focuses on behavior and correctness rather than additional analytic
 1. Disable API (core behavior implemented)
 2. Atomic visit admission
 3. Redis redirect cache
-4. Rate limiting protection
+4. User management
 5. Policy-driven links
 
-The ordering is intentional. Atomic admission is the foundation for one-time links, and Redis can then support both redirect caching and rate limiting.
+The ordering is intentional. Atomic admission is the foundation for one-time links, Redis can then support redirect caching, and user management provides the ownership and authorization model for managing links.
 
 ## 0. Disable API (Core Behavior Implemented)
 
@@ -97,27 +97,24 @@ Verification:
 - Stop Redis and confirm redirects fall back to PostgreSQL.
 - Confirm visit limits remain correct under concurrent cached requests.
 
-## 3. Rate Limiting Protection
+## 3. User Management
 
-Use Redis-backed counters or a token-bucket implementation to protect both creation and redirect endpoints.
+Add user identity and authentication so link management operations can be authorized to their owners.
 
-Initial policies:
+Initial scope:
 
-- Limit link creation per caller IP or API key.
-- Limit redirect requests per caller IP.
-- Apply a stricter limit to repeated requests for nonexistent codes.
-- Return `429 Too Many Requests` with a `Retry-After` header.
-- Keep rate-limit keys bounded and expiring.
-
-Rate limiting should fail deliberately. Decide whether Redis failure means fail-open for redirects and fail-closed for creation, then capture that decision in tests and logs.
+- Define the user identity and authentication mechanism.
+- Associate created links with their owner.
+- Require authentication and ownership checks for link creation, updates, and disable operations.
+- Keep public redirect access available without requiring a user account.
+- Return consistent authorization errors without exposing another user's link data.
 
 Verification:
 
-- Stay below the limit and confirm all requests succeed.
-- Exceed the limit and confirm `429` responses begin at the expected boundary.
-- Confirm capacity recovers after the configured window.
-- Confirm callers do not share a bucket accidentally.
-- Confirm Redis keys expire.
+- Confirm unauthenticated management requests are rejected.
+- Confirm an authenticated owner can manage their links.
+- Confirm one user cannot manage another user's links.
+- Confirm public redirects continue to work without authentication.
 
 ## 4. Policy-Driven Links
 
@@ -142,7 +139,6 @@ Design requirements:
 - Never store the password in plaintext; store a modern password hash.
 - Do not put the password in a query string because URLs are commonly logged.
 - Use a form submission or API request to exchange the password for a short-lived authorization token or cookie.
-- Rate limit failed unlock attempts separately.
 - Avoid revealing whether a failure was caused by an unknown link or incorrect password where that distinction creates an enumeration risk.
 - Publish visit events only after protection and admission checks succeed.
 

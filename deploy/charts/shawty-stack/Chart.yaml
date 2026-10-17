@@ -1,0 +1,20 @@
+apiVersion: v2
+name: shawty-stack
+description: Local Kubernetes stack for Shawty
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+dependencies:
+  - name: shawty
+    version: 0.1.0
+    repository: file://../shawty
+    condition: shawty.enabled
+  - name: postgresql
+    version: 18.11.4
+    repository: oci://registry-1.docker.io/bitnamicharts
+    condition: postgresql.enabled
+  - name: valkey
+    version: 0.11.0
+    repository: https://valkey.io/valkey-helm/
+    condition: valkey.enabled

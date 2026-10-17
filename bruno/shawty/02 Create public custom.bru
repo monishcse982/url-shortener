@@ -1,0 +1,45 @@
+meta {
+  name: 02 Create public custom
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/link/
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "url": "{{destinationUrl}}",
+    "ttl_seconds": {{ttlSeconds}},
+    "title": "Bruno custom link",
+    "short_code": "{{customCode}}",
+    "policy": {
+      "type": "public"
+    }
+  }
+}
+
+script:pre-request {
+  const suffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  bru.setVar("customCode", "bruno-" + suffix);
+}
+
+script:post-response {
+  if (res.getStatus() === 200) {
+    const body = res.getBody();
+    bru.setVar("customUrl", body.shortened_url);
+  }
+}
+
+docs {
+  Creates a unique caller-supplied code. The pre-request script generates one for
+  each send; later requests use the runtime customCode variable.
+}

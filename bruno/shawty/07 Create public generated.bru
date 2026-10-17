@@ -1,0 +1,38 @@
+meta {
+  name: 07 Create public generated
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/link/
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "url": "{{destinationUrl}}",
+    "ttl_seconds": {{ttlSeconds}},
+    "title": "Bruno generated link",
+    "policy": {"type": "public"}
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 200) {
+    const shortenedUrl = res.getBody().shortened_url;
+    bru.setVar("generatedUrl", shortenedUrl);
+    bru.setVar("generatedCode", shortenedUrl.split("/").filter(Boolean).pop());
+  }
+}
+
+docs {
+  Omits short_code so the backend generates one. Saves its URL and code as
+  runtime variables for manual exploration.
+}

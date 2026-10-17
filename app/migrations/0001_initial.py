@@ -23,6 +23,7 @@ class Migration(migrations.Migration):
                     "short_code",
                     fields.CharField(unique=True, db_index=True, max_length=32),
                 ),
+                ("owner_sub", fields.CharField(db_index=True, max_length=128)),
                 ("original_url", fields.CharField(max_length=2048)),
                 ("title", fields.CharField(null=True, max_length=256)),
                 ("max_visits", fields.IntField(null=True)),

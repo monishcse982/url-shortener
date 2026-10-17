@@ -25,6 +25,11 @@ __pycache__/
 htmlcov/
 build/
 dist/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+.vite/
+*.tsbuildinfo
 *.egg-info/
 
 # Generated artifacts and local data

@@ -88,6 +88,7 @@ class LinksRepository:
         expires_at: datetime,
         title: str | None,
         policy: dict[str, object],
+        owner_sub: str,
         max_visits: int | None = None,
     ) -> Link:
         link = await Link.create(
@@ -97,9 +98,47 @@ class LinksRepository:
             max_visits=max_visits,
             expires_at=expires_at,
             policy=policy,
+            owner_sub=owner_sub,
         )
 
         logger.info(
             "Link row created link_id=%s short_code=%s", link.id, link.short_code
         )
         return link
+
+    @staticmethod
+    async def list_by_owner(
+        owner_sub: str, *, limit: int, offset: int
+    ) -> tuple[list[Link], int]:
+        query = Link.filter(owner_sub=owner_sub)
+        return await query.order_by("-created_at", "-id").offset(offset).limit(
+            limit
+        ), await query.count()
+
+    @staticmethod
+    async def find_by_short_code(short_code: str) -> Link | None:
+        return await Link.get_or_none(short_code=short_code)
+
+    @staticmethod
+    async def update_destination(
+        short_code: str, owner_sub: str, original_url: str
+    ) -> Link | None:
+        updated = await Link.filter(
+            short_code=short_code, owner_sub=owner_sub, is_deleted=False
+        ).update(original_url=original_url)
+        return (
+            await Link.get_or_none(short_code=short_code, owner_sub=owner_sub)
+            if updated
+            else None
+        )
+
+    @staticmethod
+    async def soft_delete_owned(short_code: str, owner_sub: str) -> Link | None:
+        updated = await Link.filter(
+            short_code=short_code, owner_sub=owner_sub, is_deleted=False
+        ).update(is_deleted=True)
+        return (
+            await Link.get_or_none(short_code=short_code, owner_sub=owner_sub)
+            if updated
+            else None
+        )

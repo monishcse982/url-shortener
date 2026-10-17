@@ -125,7 +125,7 @@ class LinkTypeCreationTests(unittest.IsolatedAsyncioTestCase):
                     }
                 )
 
-                response = await service.shorten_url(request)
+                response = await service.shorten_url(request, "user-1")
 
                 saved = repository.create.await_args.kwargs
                 self.assertEqual(saved["short_code"], "example-code")

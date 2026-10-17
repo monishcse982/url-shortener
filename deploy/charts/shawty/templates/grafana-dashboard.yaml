@@ -1,0 +1,12 @@
+{{- if .Values.monitoring.dashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "shawty.fullname" . }}-grafana-dashboard
+  labels:
+    grafana_dashboard: "1"
+    {{- include "shawty.labels" . | nindent 4 }}
+data:
+  shawty.json: |-
+{{ .Files.Get "dashboards/shawty.json" | indent 4 }}
+{{- end }}

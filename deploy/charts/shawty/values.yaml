@@ -1,0 +1,47 @@
+replicaCount: 1
+
+image:
+  repository: shawty
+  pullPolicy: Never
+  tag: local
+
+migrations:
+  enabled: false
+  envSecretName: shawty-env
+  activeDeadlineSeconds: 240
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+service:
+  type: ClusterIP
+  port: 8000
+
+livenessProbe:
+  httpGet:
+    path: /metrics
+    port: http
+
+readinessProbe:
+  httpGet:
+    path: /metrics
+    port: http
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+monitoring:
+  serviceMonitor:
+    enabled: false
+    interval: 15s
+  dashboard:
+    enabled: false

@@ -29,6 +29,14 @@ class UnauthorizedError(ApplicationError):
         super().__init__(message)
 
 
+class ForbiddenError(ApplicationError):
+    code = "forbidden"
+    status_code = HTTPStatus.FORBIDDEN
+
+    def __init__(self) -> None:
+        super().__init__("You do not have access to this link")
+
+
 class ShortCodeConflictError(ApplicationError):
     code = "short_code_already_exists"
     status_code = HTTPStatus.BAD_REQUEST

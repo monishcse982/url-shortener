@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 class Link(Model):
     id = fields.IntField(primary_key=True)
     short_code = fields.CharField(max_length=32, unique=True, db_index=True, null=False)
+    owner_sub = fields.CharField(max_length=128, db_index=True)
     original_url = fields.CharField(max_length=2048, null=False)
     title = fields.CharField(max_length=256, null=True)
     max_visits = fields.IntField(null=True)

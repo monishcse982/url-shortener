@@ -1,5 +1,7 @@
 """Supported policy variants shared by the Locust scenarios."""
 
+import os
+
 LINK_TYPES = ("public", "password_protected", "ip_restricted")
 VISIT_LIMIT = 10
 LIMIT_PROFILES = (
@@ -30,3 +32,12 @@ def visit_headers_for(link_type: str) -> dict[str, str]:
     if link_type == "password_protected":
         return {"password": "load-test-password"}
     return {}
+
+
+def creation_headers() -> dict[str, str]:
+    token = os.environ.get("LOAD_ACCESS_TOKEN")
+    if not token:
+        raise RuntimeError(
+            "LOAD_ACCESS_TOKEN is required for authenticated link creation"
+        )
+    return {"Authorization": f"Bearer {token}"}

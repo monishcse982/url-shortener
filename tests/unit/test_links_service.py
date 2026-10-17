@@ -9,6 +9,7 @@ from tortoise.exceptions import IntegrityError
 
 from app.core.exceptions import (
     ApplicationError,
+    ForbiddenError,
     ResourceGoneError,
     ResourceNotFoundError,
     ShortCodeConflictError,
@@ -24,6 +25,7 @@ def make_link(**overrides):
     values = {
         "id": 42,
         "short_code": "example-code",
+        "owner_sub": "user-1",
         "original_url": "https://example.com/target",
         "title": None,
         "max_visits": None,
@@ -43,6 +45,12 @@ def make_service(link=None):
         find_active_by_short_code=AsyncMock(return_value=link),
         increment_visit_count=AsyncMock(return_value=link),
         soft_delete_by_short_code=AsyncMock(return_value=link),
+        soft_delete_owned=AsyncMock(return_value=link),
+        find_by_short_code=AsyncMock(return_value=link),
+        update_destination=AsyncMock(return_value=link),
+        list_by_owner=AsyncMock(
+            return_value=([link] if link else [], 1 if link else 0)
+        ),
     )
     producer = MagicMock()
     cache = SimpleNamespace(
@@ -76,7 +84,7 @@ class ShortenUrlTests(unittest.IsolatedAsyncioTestCase):
             }
         )
 
-        response = await service.shorten_url(request)
+        response = await service.shorten_url(request, "user-1")
 
         self.assertTrue(response.shortened_url.endswith("/my-code"))
         repository.create.assert_awaited_once()
@@ -93,7 +101,7 @@ class ShortenUrlTests(unittest.IsolatedAsyncioTestCase):
         )
 
         with self.assertRaises(ShortCodeConflictError) as raised:
-            await service.shorten_url(request)
+            await service.shorten_url(request, "user-1")
 
         self.assertEqual(raised.exception.status_code, HTTPStatus.BAD_REQUEST)
         self.assertEqual(raised.exception.details, {"short_code": "example-code"})
@@ -112,7 +120,7 @@ class ShortenUrlTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(
             service, "_generate_code", side_effect=["first123", "second123"]
         ):
-            response = await service.shorten_url(request)
+            response = await service.shorten_url(request, "user-1")
 
         self.assertEqual(repository.create.await_count, 2)
         self.assertEqual(
@@ -130,7 +138,7 @@ class ShortenUrlTests(unittest.IsolatedAsyncioTestCase):
         )
 
         with patch.object(service, "_generate_code", return_value="generated1"):
-            response = await service.shorten_url(request)
+            response = await service.shorten_url(request, "user-1")
 
         repository.create.assert_awaited_once()
         self.assertEqual(
@@ -148,7 +156,7 @@ class ShortenUrlTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(
             ApplicationError, "Could not generate a unique short code"
         ):
-            await service.shorten_url(request)
+            await service.shorten_url(request, "user-1")
 
         self.assertEqual(repository.create.await_count, 5)
 
@@ -163,7 +171,7 @@ class ShortenUrlTests(unittest.IsolatedAsyncioTestCase):
             patch("app.services.links.logger.exception"),
             self.assertRaises(ApplicationError) as raised,
         ):
-            await service.shorten_url(request)
+            await service.shorten_url(request, "user-1")
 
         self.assertEqual(raised.exception.details, {"error_type": "RuntimeError"})
         self.assertIsInstance(raised.exception.__cause__, RuntimeError)
@@ -441,18 +449,64 @@ class DisableTests(unittest.IsolatedAsyncioTestCase):
     async def test_disable_active_link_invalidates_cache(self):
         service, repository, _, cache = make_service(make_link())
 
-        await service.disable_shortened_url("example-code")
+        await service.disable_shortened_url("example-code", "user-1")
 
-        repository.soft_delete_by_short_code.assert_awaited_once_with(
-            short_code="example-code"
-        )
+        repository.soft_delete_owned.assert_awaited_once_with("example-code", "user-1")
         cache.delete.assert_awaited_once_with("link:example-code")
 
     async def test_disable_unknown_or_already_disabled_link_returns_not_found(self):
         service, repository, _, cache = make_service()
-        repository.soft_delete_by_short_code.return_value = None
+        repository.soft_delete_owned.return_value = None
 
         with self.assertRaises(ResourceNotFoundError):
-            await service.disable_shortened_url("example-code")
+            await service.disable_shortened_url("example-code", "user-1")
 
         cache.delete.assert_not_awaited()
+
+
+class ManagementTests(unittest.IsolatedAsyncioTestCase):
+    async def test_list_is_scoped_and_response_hides_policy_details(self):
+        link = make_link(
+            policy={"type": "password_protected", "password": "scrypt$secret"}
+        )
+        service, repository, _, _ = make_service(link)
+
+        result = await service.list_managed_links("user-1", limit=100, offset=0)
+
+        repository.list_by_owner.assert_awaited_once_with("user-1", limit=100, offset=0)
+        self.assertEqual(result.total, 1)
+        self.assertEqual(result.items[0].policy_type, "password_protected")
+        self.assertNotIn("secret", result.model_dump_json())
+
+    async def test_foreign_link_cannot_be_read_edited_or_disabled(self):
+        service, repository, _, cache = make_service(
+            make_link(owner_sub="another-user")
+        )
+
+        for action in (
+            service.get_managed_link("example-code", "user-1"),
+            service.update_destination(
+                "example-code", "user-1", "https://new.example/"
+            ),
+            service.disable_shortened_url("example-code", "user-1"),
+        ):
+            with self.assertRaises(ForbiddenError):
+                await action
+
+        repository.update_destination.assert_not_awaited()
+        repository.soft_delete_owned.assert_not_awaited()
+        cache.delete.assert_not_awaited()
+
+    async def test_edit_invalidates_redirect_cache(self):
+        link = make_link(original_url="https://new.example/")
+        service, repository, _, cache = make_service(link)
+
+        result = await service.update_destination(
+            "example-code", "user-1", "https://new.example/"
+        )
+
+        self.assertEqual(result.original_url, "https://new.example/")
+        repository.update_destination.assert_awaited_once_with(
+            "example-code", "user-1", "https://new.example/"
+        )
+        cache.delete.assert_awaited_once_with("link:example-code")

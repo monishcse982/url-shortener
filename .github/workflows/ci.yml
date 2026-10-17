@@ -12,6 +12,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  frontend:
+    name: Frontend quality and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Lint, typecheck, and test
+        run: npm run lint && npm run typecheck && npm test
+        working-directory: frontend
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+
   python:
     name: Python quality and unit tests
     runs-on: ubuntu-24.04
@@ -63,7 +88,17 @@ jobs:
         with:
           persist-credentials: false
       - name: Build application image
-        run: docker build --tag url-visit-tracker:ci .
+        run: docker build --tag shawty:ci .
+      - name: Build static UI image
+        run: |
+          docker build --tag shawty-ui:ci \
+            --build-arg VITE_API_BASE_URL=http://localhost:8080 \
+            --build-arg VITE_COGNITO_ISSUER=https://cognito-idp.example.com/example \
+            --build-arg VITE_COGNITO_CLIENT_ID=ci-public-client \
+            --build-arg VITE_COGNITO_DOMAIN=https://login.example.com \
+            --build-arg VITE_COGNITO_REDIRECT_URI=http://localhost:5173/auth/callback \
+            --build-arg VITE_COGNITO_LOGOUT_URI=http://localhost:5173/ \
+            frontend
 
   secrets:
     name: Secret scan

@@ -20,9 +20,9 @@ class LinkRouteTests(unittest.IsolatedAsyncioTestCase):
         expected_response = object()
         service = SimpleNamespace(shorten_url=AsyncMock(return_value=expected_response))
 
-        self.assertIs(await shorten_url(request, service), expected_response)
+        self.assertIs(await shorten_url(request, service, "user-1"), expected_response)
 
-        service.shorten_url.assert_awaited_once_with(request)
+        service.shorten_url.assert_awaited_once_with(request, "user-1")
 
     async def test_redirect_forwards_auth_header_and_client_ip(self):
         request = SimpleNamespace(
@@ -68,6 +68,6 @@ class LinkRouteTests(unittest.IsolatedAsyncioTestCase):
     async def test_disable_route_forwards_short_code(self):
         service = SimpleNamespace(disable_shortened_url=AsyncMock())
 
-        await disable_shortened_url("example-code", service)
+        await disable_shortened_url("example-code", service, "user-1")
 
-        service.disable_shortened_url.assert_awaited_once_with("example-code")
+        service.disable_shortened_url.assert_awaited_once_with("example-code", "user-1")
