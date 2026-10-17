@@ -20,7 +20,9 @@ class SettingsTests(unittest.TestCase):
 
     def test_base_url_includes_non_default_port(self):
         self.assertEqual(
-            Settings(app_host="example.test", app_port=8080).base_url,
+            Settings(
+                app_scheme="http", app_host="example.test", app_port=8080
+            ).base_url,
             "http://example.test:8080",
         )
 
@@ -66,6 +68,10 @@ class SettingsTests(unittest.TestCase):
 
     def test_kafka_config_omits_empty_optional_security_settings(self):
         with (
+            patch(
+                "app.kafka.config.settings.kafka_bootstrap_servers", "localhost:9092"
+            ),
+            patch("app.kafka.config.settings.kafka_client_id", "url-visit-tracker-api"),
             patch("app.kafka.config.settings.kafka_security_protocol", ""),
             patch("app.kafka.config.settings.kafka_sasl_mechanism", ""),
             patch("app.kafka.config.settings.kafka_username", ""),
