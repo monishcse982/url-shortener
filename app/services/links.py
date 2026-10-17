@@ -160,10 +160,20 @@ class LinksService:
     def _authorize_visit(
         link: Link, *, password: str | None, ip_address: str | None
     ) -> None:
-        policy = link.policy or {}
+        raw_policy: object = link.policy
+        if raw_policy is None:
+            policy: dict[str, object] = {}
+        elif isinstance(raw_policy, dict):
+            policy = raw_policy
+        else:
+            raise UnauthorizedError(
+                message=(
+                    f"Invalid access policy for short link short_code={link.short_code}"
+                )
+            ) from None
         stored_password = policy.get("password")
         if stored_password is not None:
-            if password is None:
+            if not isinstance(stored_password, str) or password is None:
                 raise UnauthorizedError(
                     message=(
                         f"Password required for short link short_code={link.short_code}"
@@ -178,13 +188,36 @@ class LinksService:
 
         allowed_ips = policy.get("ip_list")
         if allowed_ips is not None:
+            if not isinstance(allowed_ips, list):
+                raise UnauthorizedError(
+                    message=(
+                        "IP address not allowed for short link "
+                        f"short_code={link.short_code}"
+                    )
+                ) from None
+
+            allowed_networks: list[str] = []
+            for entry in allowed_ips:
+                if not isinstance(entry, str):
+                    raise UnauthorizedError(
+                        message=(
+                            "IP address not allowed for short link "
+                            f"short_code={link.short_code}"
+                        )
+                    ) from None
+                allowed_networks.append(entry)
+
             try:
                 visitor_ip = ipaddress.ip_address(ip_address) if ip_address else None
+                networks = [
+                    ipaddress.ip_network(network, strict=False)
+                    for network in allowed_networks
+                ]
             except ValueError:
                 visitor_ip = None
+                networks = []
             if visitor_ip is None or not any(
-                visitor_ip in ipaddress.ip_network(entry, strict=False)
-                for entry in allowed_ips
+                visitor_ip in network for network in networks
             ):
                 raise UnauthorizedError(
                     message=(

@@ -54,11 +54,14 @@ visit. IP restricted redirects allow only configured addresses or CIDR ranges.
 The load scenarios allow both IPv4 and IPv6 runner addresses for their IP
 restricted cases; unit tests cover specific allowed and denied addresses.
 
-Run the unit tests with:
+Run the unit tests and display line and branch coverage with:
 
 ```bash
-uv run python -m unittest discover -s tests/unit -v
+make coverage
 ```
+
+Run only the tests while collecting coverage with `make unit-test`. Coverage is
+configured in `pyproject.toml`; the report shows uncovered lines and branches.
 
 ## Request Flow
 

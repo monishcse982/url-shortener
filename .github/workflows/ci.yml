@@ -35,7 +35,9 @@ jobs:
       - name: Check formatting
         run: uv run --locked --no-sync ruff format --check .
       - name: Run unit tests
-        run: uv run --locked --no-sync python -m unittest discover -s tests/unit -v
+        run: uv run --locked --no-sync coverage run -m unittest discover -s tests/unit -v
+      - name: Report line and branch coverage
+        run: uv run --locked --no-sync coverage report
 
   helm:
     name: Helm charts

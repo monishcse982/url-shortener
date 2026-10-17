@@ -43,12 +43,18 @@ PROMETHEUS_SERVICE := $(MONITORING_RELEASE)-kube-prometheus-prometheus
 GRAFANA_PORT ?= 3000
 PROMETHEUS_PORT ?= 9090
 
-.PHONY: help infra-up infra-start infra-stop infra-status cluster-up cluster-stop cluster-status image-build image-load validate-env namespace secret postgres-secret valkey-secret kafka-operator monitoring-install monitoring-status grafana-password grafana-forward prometheus-forward chart-deps chart-validate deploy wait-infra sync-kafka-password infra-ready migration-status status logs port-forward port-forward-app port-forward-all diagnose-port-forward restart uninstall cluster-delete makemigrations migrate
+.PHONY: help unit-test coverage infra-up infra-start infra-stop infra-status cluster-up cluster-stop cluster-status image-build image-load validate-env namespace secret postgres-secret valkey-secret kafka-operator monitoring-install monitoring-status grafana-password grafana-forward prometheus-forward chart-deps chart-validate deploy wait-infra sync-kafka-password infra-ready migration-status status logs port-forward port-forward-app port-forward-all diagnose-port-forward restart uninstall cluster-delete makemigrations migrate
 
 help: ## Show the available commands.
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target> [VARIABLE=value]\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@printf "\nCommon overrides:\n"
 	@printf "  PROFILE=%s NAMESPACE=%s ENV_FILE=%s LOCAL_PORT=%s\n" "$(PROFILE)" "$(NAMESPACE)" "$(ENV_FILE)" "$(LOCAL_PORT)"
+
+unit-test: ## Run unit tests while collecting line and branch coverage.
+	uv run --locked coverage run -m unittest discover -s tests/unit -v
+
+coverage: unit-test ## Run unit tests and print the coverage summary.
+	uv run --locked coverage report
 
 infra-up: image-load infra-ready status ## Start Minikube and deploy the complete application stack.
 
