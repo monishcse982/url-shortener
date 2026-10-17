@@ -16,6 +16,8 @@ from app.core.config import settings
 from app.core.exceptions import (
     ApplicationError,
     ForbiddenError,
+    InvalidLinkPasswordError,
+    LinkPasswordRequiredError,
     ResourceGoneError,
     ResourceNotFoundError,
     ShortCodeConflictError,
@@ -183,14 +185,21 @@ class LinksService:
             ) from None
         stored_password = policy.get("password")
         if stored_password is not None:
-            if not isinstance(stored_password, str) or password is None:
-                raise UnauthorizedError(
+            if password is None:
+                raise LinkPasswordRequiredError(
                     message=(
                         f"Password required for short link short_code={link.short_code}"
                     )
                 ) from None
-            if not LinksService._verify_password(password, stored_password):
+            if not isinstance(stored_password, str):
                 raise UnauthorizedError(
+                    message=(
+                        "Invalid access policy for short link "
+                        f"short_code={link.short_code}"
+                    )
+                ) from None
+            if not LinksService._verify_password(password, stored_password):
+                raise InvalidLinkPasswordError(
                     message=(
                         f"Invalid password for short link short_code={link.short_code}"
                     )

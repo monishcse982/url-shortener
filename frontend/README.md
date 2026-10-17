@@ -26,4 +26,4 @@ Run `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build` before 
 
 OIDC user and PKCE state are kept in `sessionStorage`, so they survive a page reload but are cleared when the tab session ends. This limits persistence compared with `localStorage`, but a script running in the same origin can still read them. Sign out clears the local user, then visits Cognito's logout endpoint. Automatic token renewal uses the refresh token while the Cognito session permits it.
 
-Link creation defaults to a seven-day expiry because the API requires a TTL. Alias and expiry can be adjusted under **options**. The current UI creates public links; the backend also supports password and IP-restricted link policies through the API.
+Link creation defaults to a seven-day expiry because the API requires a TTL. Under **options**, owners can set a title, alias, expiry, visit limit, or access policy. Password protected links open an unlock form on the short URL in a browser. API clients can continue sending the `password` header on each redirect request.

@@ -1,11 +1,14 @@
 import logging
+from urllib.parse import parse_qs
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from redis.asyncio import Redis
 from starlette import status
 
+from app.api.password_page import password_page
 from app.core.auth import get_current_user
+from app.core.exceptions import InvalidLinkPasswordError, LinkPasswordRequiredError
 from app.db.repositories.links import LinksRepository
 from app.db.repositories.visits import VisitsRepository
 from app.kafka.producer import KafkaProducer, kafka_producer
@@ -92,17 +95,53 @@ async def redirect_to_url(
     short_code: str,
     request: Request,
     links_service: LinksService = Depends(get_links_service),
-) -> RedirectResponse:
+) -> Response:
     logger.info("Redirect request received short_code=%s", short_code)
-    original_url = await links_service.get_url(
-        short_code,
-        password=request.headers.get("password"),
-        user_agent=request.headers.get("user-agent"),
-        referrer=request.headers.get("referer"),
-        ip_address=request.client.host if request.client else None,
-    )
+    try:
+        original_url = await links_service.get_url(
+            short_code,
+            password=request.headers.get("password"),
+            user_agent=request.headers.get("user-agent"),
+            referrer=request.headers.get("referer"),
+            ip_address=request.client.host if request.client else None,
+        )
+    except LinkPasswordRequiredError:
+        if "text/html" in request.headers.get("accept", ""):
+            return password_page(short_code)
+        raise
 
     return RedirectResponse(url=original_url, status_code=302)
+
+
+@router.post("/link/{short_code}/unlock", include_in_schema=False)
+async def unlock_link(
+    short_code: str,
+    request: Request,
+    links_service: LinksService = Depends(get_links_service),
+) -> Response:
+    if not request.headers.get("content-type", "").startswith(
+        "application/x-www-form-urlencoded"
+    ):
+        raise HTTPException(status_code=415, detail="Expected a form submission")
+    body = await request.body()
+    if len(body) > 4096:
+        raise HTTPException(status_code=413, detail="Form is too large")
+    try:
+        encoded_form = body.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise HTTPException(status_code=400, detail="Invalid form encoding") from error
+    password = parse_qs(encoded_form, keep_blank_values=True).get("password", [""])[0]
+    try:
+        original_url = await links_service.get_url(
+            short_code,
+            password=password,
+            user_agent=request.headers.get("user-agent"),
+            referrer=request.headers.get("referer"),
+            ip_address=request.client.host if request.client else None,
+        )
+    except (LinkPasswordRequiredError, InvalidLinkPasswordError):
+        return password_page(short_code, invalid=True)
+    return RedirectResponse(url=original_url, status_code=303)
 
 
 @router.get("/dummy-target")
