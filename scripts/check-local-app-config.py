@@ -51,7 +51,9 @@ def main() -> None:
     callback = required(frontend, "VITE_COGNITO_REDIRECT_URI", frontend_path)
     logout = required(frontend, "VITE_COGNITO_LOGOUT_URI", frontend_path)
     if callback != f"{origin}/auth/callback" or logout != f"{origin}/":
-        raise ValueError(f"Set the Cognito callback to {origin}/auth/callback and sign-out to {origin}/")
+        raise ValueError(
+            f"Set the Cognito callback to {origin}/auth/callback and sign-out to {origin}/"
+        )
     cors = required(backend, "CORS_ORIGINS", backend_path)
     if origin not in (item.strip() for item in cors.split(",")):
         raise ValueError(f"Add {origin} to CORS_ORIGINS in {backend_path}")
