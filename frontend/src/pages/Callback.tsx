@@ -19,6 +19,6 @@ export function Callback() {
       navigate(returnTo, { replace: true })
     }).catch(cause => setError(cause instanceof Error ? cause.message : 'Sign in failed'))
   }, [navigate, refresh])
-  if (error) return <main className="auth-page"><p role="alert">{error}</p><Link to="/">try again</Link></main>
-  return <main className="auth-page"><BrailleSpinner /><p>finishing sign in</p><StepProgress step={3} /></main>
+  if (error) return <main className="auth-page auth-state"><p role="alert">{error}</p><Link to="/">try again</Link></main>
+  return <main className="auth-page auth-state"><BrailleSpinner /><p>finishing sign in</p><StepProgress step={3} /></main>
 }

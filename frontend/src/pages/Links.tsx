@@ -75,7 +75,7 @@ export function Links() {
   }
   const error = formError || (create.error instanceof Error ? create.error.message : null)
   return <main className="content-page">
-    <header className="page-header"><h1>links</h1><Button kind="ghost" onClick={() => void signOut()}>sign out</Button></header>
+    <header className="page-header"><div className="header-heading"><span className="brand-mark">zipp<span className="cursor">_</span></span><h1>links</h1></div><Button kind="ghost" onClick={() => void signOut()}>sign out</Button></header>
     <Panel><form onSubmit={submit} className="create-form">
       <Input id="long-url" label="long url" type="url" placeholder="https://" value={url} onChange={event => setUrl(event.target.value)} required />
       <details className="advanced-fields"><summary>options</summary>

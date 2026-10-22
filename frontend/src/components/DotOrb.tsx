@@ -9,6 +9,7 @@ export default function DotOrb() {
     let visible = true
     let frame = 0
     let phase = 0
+    const accent = getComputedStyle(element).getPropertyValue('--color-accent').trim()
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const start = () => { if (!reduced && visible && !document.hidden && !frame) draw() }
     const stop = () => { if (frame) cancelAnimationFrame(frame); frame = 0 }
@@ -31,7 +32,7 @@ export default function DotOrb() {
         const shade = Math.max(0, 1 - distance * distance)
         const drift = 0.88 + 0.12 * Math.sin(phase + x * 0.04 + y * 0.02)
         context.globalAlpha = shade * drift
-        context.fillStyle = '#ff5a36'
+        context.fillStyle = accent
         context.beginPath()
         context.arc(x, y, 1.5 + 2.7 * shade, 0, Math.PI * 2)
         context.fill()
