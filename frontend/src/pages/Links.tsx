@@ -78,6 +78,7 @@ export function Links() {
     <header className="page-header"><div className="header-heading"><span className="brand-mark">zipp<span className="cursor">_</span></span><h1>links</h1></div><Button kind="ghost" onClick={() => void signOut()}>sign out</Button></header>
     <Panel><form onSubmit={submit} className="create-form">
       <Input id="long-url" label="long url" type="url" placeholder="https://" value={url} onChange={event => setUrl(event.target.value)} required />
+      <Button type="submit" disabled={create.isPending}>{create.isPending ? <BrailleSpinner /> : 'shorten >'}</Button>
       <details className="advanced-fields"><summary>options</summary>
         <Input id="title" label="title (optional)" value={title} onChange={event => setTitle(event.target.value)} maxLength={256} />
         <Input id="alias" label="alias (optional)" value={alias} onChange={event => setAlias(event.target.value)} minLength={3} maxLength={32} />
@@ -87,7 +88,7 @@ export function Links() {
         {policyType === 'password_protected' && <Input id="link-password" label="link password" type="password" value={password} onChange={event => setPassword(event.target.value)} minLength={1} maxLength={256} required autoComplete="new-password" />}
         {policyType === 'ip_restricted' && <label className="field" htmlFor="allowed-ips"><span>allowed IP addresses or CIDR ranges</span><textarea id="allowed-ips" value={ipList} onChange={event => setIpList(event.target.value)} placeholder={'203.0.113.4\n198.51.100.0/24'} rows={4} required /><small>Separate entries with commas or new lines. Visitors outside these ranges cannot open the link.</small></label>}
       </details>
-      <Button type="submit" disabled={create.isPending}>{create.isPending ? <BrailleSpinner /> : 'shorten >'}</Button><StatusLine error={error} success={success} />
+      <StatusLine error={error} success={success} />
     </form></Panel>
     <div className="section-heading">your links ({total})</div>
     {list.isPending && <Panel><BrailleSpinner /> loading links</Panel>}
