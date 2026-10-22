@@ -1,6 +1,6 @@
-# Shawty frontend
+# zipp frontend
 
-Static Vite + React + TypeScript SPA for signing in, creating links, listing them, editing destinations, and disabling links. React Router handles pages, TanStack Query manages API data, and `oidc-client-ts` handles Cognito authorization code with PKCE. The interface uses plain CSS and self-hosted JetBrains Mono and Doto packages.
+Static Vite + React + TypeScript SPA for signing in, creating links, listing them, editing destinations, and disabling links. React Router handles pages, TanStack Query manages API data, and `oidc-client-ts` handles Cognito authorization code with PKCE. The interface uses plain CSS and self-hosted IBM Plex Mono and Doto packages.
 
 ## Run locally
 

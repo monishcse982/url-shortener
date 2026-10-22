@@ -36,6 +36,7 @@ export function ManageLink() {
   const item = link.data
   const currentDestination = destination ?? item.original_url
   return <main className="content-page manage-page">
+    <div className="brand-mark">zipp<span className="cursor">_</span></div>
     <Link ref={backLink} className="back-link" to="/links">&lt; links</Link>
     <h1 className="manage-title">{item.shortened_url}</h1><Badge status={item.status} />
     <Panel className="details-panel"><dl><div><dt>created</dt><dd>{new Date(item.created_at).toLocaleDateString()}</dd></div><div><dt>status</dt><dd>{item.status}</dd></div><div><dt>expires</dt><dd>{item.expires_at ? new Date(item.expires_at).toLocaleDateString() : 'never'}</dd></div><div><dt>visits</dt><dd>{item.visit_count}{item.max_visits !== null ? ` / ${item.max_visits}` : ''}</dd></div><div><dt>type</dt><dd>{item.policy_type.replace('_', ' ')}</dd></div>{item.title && <div><dt>title</dt><dd>{item.title}</dd></div>}</dl></Panel>
