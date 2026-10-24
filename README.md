@@ -2,7 +2,7 @@
 
 A FastAPI URL shortener built as a small event-driven system. It creates short links, redirects visitors, publishes visit events to Kafka, and persists visit details asynchronously in PostgreSQL. The repository also includes local Kubernetes deployment, Prometheus/Grafana observability, and repeatable Locust load profiles.
 
-The next planned capabilities are documented in [docs/roadmap.md](docs/roadmap.md).
+**Project status:** the current local application scope is complete. EKS hosting is deferred as a separate learning exercise. See [the project status and deferred roadmap](docs/roadmap.md).
 
 ## Current Capabilities
 
@@ -22,6 +22,16 @@ The next planned capabilities are documented in [docs/roadmap.md](docs/roadmap.m
 - Emit plain-text or JSON logs with correlation IDs.
 - Expose FastAPI, application, and Kafka Prometheus metrics at `/metrics`.
 - Provide `/dummy-target` for redirect and load testing.
+
+### User interface
+
+| Sign in | Manage links |
+| --- | --- |
+| <img src="docs/images/sign-in.png" alt="Zipp sign-in screen" width="520"> | <img src="docs/images/links.png" alt="Zipp link list and create form" width="520"> |
+
+| Link options | Link details |
+| --- | --- |
+| <img src="docs/images/link-options.png" alt="Optional link configuration fields" width="520"> | <img src="docs/images/link-details.png" alt="Link details and status" width="520"> |
 
 ### Infrastructure
 
@@ -220,6 +230,13 @@ forwards. Keep the command running and open
 forwards; Minikube keeps running. The first deployment can take several
 minutes while images and charts download.
 
+For later sessions, when you have not changed application code or deployment
+configuration, use `make app-start`. It starts the existing Minikube profile,
+waits for the API and UI to become ready, and opens only the UI and API
+forwards. It skips image builds, image loading, Helm upgrades, and dependency
+installation. Use `make app-up` after changing code, images, secrets, or chart
+configuration so those changes are applied.
+
 For backend infrastructure only, run:
 
 ```bash
@@ -247,16 +264,20 @@ Use these targets for the usual development cycle:
 
 ### Start and stop a work session
 
-Start an existing Minikube profile and check the stack:
+Resume the existing application without rebuilding or redeploying:
 
 ```bash
-make infra-start
-make infra-status
+make app-start
 ```
 
-Keep the application and local dependency tunnels open in a separate terminal:
+This starts the existing Minikube profile, waits for the API and UI Deployments,
+and opens their local forwards. For a full rebuild and deployment, use
+`make app-up`.
+
+To inspect the cluster and all local dependency tunnels, use:
 
 ```bash
+make infra-status
 make port-forward-all
 ```
 
@@ -482,6 +503,11 @@ workflow has read-only repository permissions and does not deploy. To prevent
 merges when a check fails, require these job checks in the GitHub branch
 protection settings for `master`.
 
+The CI image job builds the API and frontend images but does not publish them.
+The project owner has completed ECR publication outside this repository; the
+[EKS learning plan](docs/eks-learning-plan.md) tracks the image references and
+deployment steps that still need to be recorded.
+
 Run Ruff checks:
 
 ```bash
@@ -522,6 +548,7 @@ make help
 | Command | Purpose |
 | --- | --- |
 | `make app-up` | Deploy the full stack and serve the UI locally |
+| `make app-start` | Resume an existing deployment and serve the UI without rebuilding |
 | `make infra-up` | Build, deploy, synchronize secrets, and wait for the complete stack |
 | `make infra-start` | Start an existing stopped Minikube profile |
 | `make infra-stop` | Stop Minikube while preserving cluster state |
@@ -616,13 +643,6 @@ Commit `uv.lock` and the source charts, but leave real credentials and load
 reports local. If a credential is ever committed, remove it from Git history
 and rotate it before publishing; adding it to `.gitignore` later is not enough.
 
-## Roadmap
+## Project Status
 
-The disable API is implemented. The remaining implementation sequence is:
-
-1. Atomic visit admission
-2. Redis redirect cache
-3. Rate limiting protection
-4. One-time and protected links
-
-See [docs/roadmap.md](docs/roadmap.md) for contracts, design constraints, and verification criteria.
+The application, Cognito management flow, and API load-testing scope are complete for local use. The repository's GitHub Actions workflow runs checks and builds images; it does not publish images to ECR or deploy to EKS. EKS is deferred. Optional reliability and browser end-to-end learning exercises are listed in [docs/roadmap.md](docs/roadmap.md).

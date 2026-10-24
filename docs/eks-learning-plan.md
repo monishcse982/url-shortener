@@ -1,13 +1,17 @@
-# EKS learning plan for Shawty
+# EKS learning plan for Zipp
 
-This is a hands-on plan for running the existing application stack on Amazon EKS from a GitHub-hosted repository. The first cluster is disposable: create it for a focused learning session, keep any wanted reports outside the cluster, and delete it afterward. No AWS resources or GitHub workflows have been created by this plan.
+This is a hands-on plan for running the existing application stack on Amazon EKS from a GitHub-hosted repository. The first cluster is disposable: create it for a focused learning session, keep any wanted reports outside the cluster, and delete it afterward. The repository has a GitHub Actions CI workflow, but no EKS deployment configuration or ECR publishing workflow.
+
+**Current image status:** CI builds the API and frontend images without publishing them. ECR publication has been completed outside this repository, according to the project owner. Record the AWS Region, image references and digests, and the publishing method before using those images in EKS values.
+
+**Project status:** ECR publication and EKS cluster setup are complete outside this repository, as confirmed by the project owner. Application deployment to EKS, GitHub Actions publishing/deployment, and EKS load/cleanup exercises are deferred. The local application project is complete without these steps.
 
 ## What I want to learn
 
 By the end, I should be able to explain and demonstrate:
 
-1. How GitHub source becomes a versioned container image in Amazon ECR.
-2. How GitHub Actions obtains short-lived AWS credentials through OIDC.
+1. How GitHub source becomes versioned API and frontend container images in Amazon ECR.
+2. How GitHub Actions can obtain short-lived AWS credentials through OIDC if publishing is automated.
 3. How an EKS control plane, managed node group, VPC, IAM access entry, and `kubeconfig` fit together.
 4. How EBS-backed PersistentVolumeClaims support PostgreSQL, Kafka, Valkey, and Prometheus.
 5. How Helm installs this stack, runs the migration Job, and reports deployment failures.
@@ -28,9 +32,9 @@ For the first run, choose one AWS Region and calculate the full estimate there b
 
 ```text
 GitHub commit
-  -> GitHub Actions: checks, build, push SHA-tagged image
-  -> Amazon ECR
-  -> EKS managed node pulls image
+  -> GitHub Actions: checks and builds API + frontend images (current)
+  -> separate publication step -> Amazon ECR (completed outside this repo)
+  -> EKS managed node pulls both images
   -> Helm: Strimzi, monitoring, application stack
   -> EBS volumes: PostgreSQL, Kafka, Valkey, Prometheus
 
@@ -38,54 +42,50 @@ Laptop kubectl -> EKS API -> pods, logs, port-forward
 Load generator -> application Service -> PostgreSQL / Kafka / Valkey
 ```
 
-Start with a **manual deployment from the laptop** after GitHub Actions publishes the image. Add GitHub-driven deployment only after the manual path works. This keeps build identity, cluster access, and Kubernetes behavior understandable one step at a time.
+Start with a **manual deployment from the laptop** using the published images. Add GitHub-driven deployment only after the manual path works. This keeps build identity, cluster access, and Kubernetes behavior understandable one step at a time.
 
-## Phase 0 — Establish the GitHub baseline
+## Phase 0 — GitHub baseline (complete)
 
 **Learn:** repository history, branch protection, Actions permissions, and what is safe to publish.
 
-- Review the current working tree and create the initial commits. The repository currently has no `.github/workflows/` directory.
-- Confirm `.env`, `.env.*`, generated load reports, and packaged chart archives stay out of Git. The existing `.gitignore` covers them; review staged files before pushing.
-- Add a small GitHub Actions workflow for repository checks and Helm rendering. Keep this workflow without AWS permissions.
-- Record the GitHub organization/user, repository name, default branch, AWS account, Region, and planned cluster name in a local worksheet. Do not put credentials in the repository.
+- `.github/workflows/ci.yml` runs frontend and Python checks, Helm validation, both image builds, and secret scans. It has read-only repository permissions and no AWS deployment credentials.
+- `.gitignore` and the repository Git hooks guard against committing local environment files, generated reports, and likely secrets. Review staged files before each push.
+- Record the GitHub repository, default branch, AWS account, Region, and planned cluster name in a local worksheet. Do not put credentials in the repository.
 
-**Done when:** a commit can be checked out on a clean machine and the repository checks run from GitHub.
+**Status:** implemented and running in `.github/workflows/ci.yml`.
 
-## Phase 1 — Publish an image to ECR
+## Phase 1 — ECR image publication (complete outside this repository)
 
-**Learn:** ECR repositories, image tags/digests, IAM trust, and GitHub OIDC.
+**Learn:** ECR image references, tags/digests, and the current publishing method; IAM trust and GitHub OIDC if publishing is automated.
 
-- Create one private ECR repository for the application, with a lifecycle policy for old experimental images.
-- Configure GitHub's OIDC provider and a role restricted to this repository and the intended branch or environment. Give the role the ECR permissions needed to push; do not use long-lived AWS access keys in GitHub. Confirm the actual OIDC `sub` format for this repository before writing its IAM trust condition, because GitHub's subject format can vary by repository and environment. See [GitHub's AWS OIDC guide](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws) and the [AWS credentials action](https://github.com/aws-actions/configure-aws-credentials).
-- Build and push the image with the commit SHA as its tag. Capture the resulting image digest in the workflow output. Push only from a trusted branch; pull requests can run checks without AWS write access.
-- Verify the image exists in ECR and can be pulled by an EKS worker role. Follow the [ECR push guide](https://docs.aws.amazon.com/AmazonECR/latest/userguide/docker-push-ecr-image.html).
+- [x] Publish the API and frontend images to ECR outside this repository (completed by the project owner).
+- Before an EKS application deployment, record the ECR image references, AWS Region, tags or digests, source commit, and publishing method. The API uses the root `Dockerfile`; the frontend uses `frontend/Dockerfile` and public Vite build arguments.
+- Verify worker-role pull access during the deferred EKS deployment. See the [ECR push guide](https://docs.aws.amazon.com/AmazonECR/latest/userguide/docker-push-ecr-image.html).
+- If image publishing should become automatic, add a separate trusted-branch workflow. Use a restricted GitHub OIDC role with ECR push permissions and capture the resulting image digests. Pull requests should continue to run checks without AWS write access. Confirm the actual OIDC `sub` format before writing the trust condition. See [GitHub's AWS OIDC guide](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws) and the [AWS credentials action](https://github.com/aws-actions/configure-aws-credentials).
 
-**Done when:** a GitHub commit produces a traceable ECR image without a stored AWS access key.
+**Status:** image publication is complete. Recording image provenance and verifying worker-node pull access remain deployment-time tasks. GitHub-driven publishing is optional and is not present in this repository.
 
-## Phase 2 — Create a deliberately small EKS cluster
+## Phase 2 — EKS cluster setup (complete outside this repository)
 
 **Learn:** control plane vs worker node, managed node groups, VPC routing, cluster endpoint access, and IAM access entries.
 
-- Add a reviewed, parameterized `eksctl` cluster configuration under `deploy/eks/`. Specify the Region, one managed node, instance type, node disk size, endpoint access, and NAT setting. Size the node from the local resource measurements; a 4-vCPU, 16-GiB class is a starting point to price and validate, not a guarantee that every workload will fit.
-- For the low-cost learning configuration, evaluate a public-subnet worker with NAT disabled, a restricted Kubernetes API endpoint, no public application `LoadBalancer`, and no inbound SSH. Set both public and private API endpoint access appropriately so a restricted public CIDR does not prevent nodes from joining. Verify the effective subnet, security-group, and public-IP settings before deployment. See [eksctl endpoint access](https://docs.aws.amazon.com/eks/latest/eksctl/vpc-cluster-access.html) and [subnet settings](https://docs.aws.amazon.com/eks/latest/eksctl/vpc-subnet-settings.html).
-- Create the cluster from the reviewed config rather than bare `eksctl create cluster`. Use an [EKS access entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) for the human IAM principal. Generate kubeconfig with `aws eks update-kubeconfig --region <region> --name <cluster>` and inspect the active context before any Helm command. See the [kubectl connection guide](https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html).
-- Record the node's allocatable CPU/memory and the EKS system pod footprint. Compare them with the sum of this chart's resource requests before installing the full stack.
+The project owner has confirmed the cluster setup is complete. Its Region, node sizing, endpoint access, IAM access method, and networking details are not recorded in this repository. Review those settings before deploying the app. Do not create another cluster as part of the current project scope. References: [EKS access entries](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html), [endpoint access](https://docs.aws.amazon.com/eks/latest/eksctl/vpc-cluster-access.html), and [kubeconfig](https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html).
 
-**Done when:** `kubectl get nodes` works from the laptop and the single node is Ready.
+**Status:** cluster setup is complete per the project owner; app-specific compatibility review is deferred.
 
-## Phase 3 — Prepare storage and repo-specific EKS values
+## Phase 3 — Prepare storage and repo-specific EKS values (deferred)
 
 **Learn:** EBS CSI, StorageClasses, PVC lifecycle, and the difference between local and AWS image delivery.
 
 - Install the Amazon EBS CSI driver as an EKS add-on with the required IAM permissions, preferably through EKS Pod Identity. Create or select a gp3 StorageClass. See the [EBS CSI guide](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html).
-- Add separate Helm values for EKS. Preserve the current Minikube values. Replace the local image repository/tag and `pullPolicy: Never` with the ECR image and an appropriate pull policy. Use a SHA tag or digest for each deployment.
+- Add separate Helm values for EKS. Preserve the current Minikube values. Replace both local image repositories/tags and `pullPolicy: Never` with the API and frontend ECR images and an appropriate pull policy. Use a SHA tag or digest for each deployment.
 - Set an EKS StorageClass for PostgreSQL, Kafka, Valkey, and Prometheus. The current Prometheus values explicitly use Minikube's `standard` class; Kafka, PostgreSQL, and Valkey also create PVCs. Confirm all PVCs bind before waiting on application readiness.
 - Add EKS-specific Make targets or a script that use the EKS kubecontext and values files. Existing `make infra-up` and `make deploy` start Minikube and load a local image, so they are not EKS deployment commands.
 - Keep application and database passwords out of GitHub. For the first manual deployment, create Kubernetes Secrets from a local, Git-ignored file. Later, learn AWS Secrets Manager and a suitable sync mechanism as a separate exercise. Do not have the image-build workflow handle application secrets.
 
 **Done when:** a rendered EKS chart points to ECR and the EBS StorageClass, with no Minikube startup or local image loading in its path.
 
-## Phase 4 — Deploy and inspect the application
+## Phase 4 — Deploy and inspect the application (deferred)
 
 **Learn:** Helm releases, CRDs/operators, migration Jobs, readiness, and recovery.
 
@@ -100,18 +100,18 @@ Keep services internal at first. Use `kubectl port-forward` for the API and Graf
 
 **Done when:** a link can be created and visited, the visit is persisted, and Grafana shows the relevant metrics.
 
-## Phase 5 — Run one measured load experiment
+## Phase 5 — Run one measured EKS load experiment (deferred)
 
 **Learn:** requests vs limits, HPA prerequisites, metrics interpretation, and cost/performance tradeoffs.
 
-- Run one existing Locust preset after the stack is healthy. Put the load generator near the cluster for performance measurements rather than sending load through `kubectl port-forward`.
+- API load testing is complete for the local application. If the EKS deployment resumes, run one existing Locust preset against the cluster. Put the load generator near the cluster for performance measurements rather than sending load through `kubectl port-forward`.
 - Capture the Locust HTML/CSV report, pod restart reasons, CPU/memory working sets, throttling, Kafka lag, database behavior, and Prometheus target health. Keep reports outside the cluster before teardown.
 - Compare observed peaks with the limits in the EKS values. Change one limit or replica setting at a time and explain the effect. A single Kafka broker and application-embedded consumer are deliberate constraints of this experiment.
 - Treat HPA, multiple application replicas, public ingress, and managed databases as follow-up exercises after the baseline is understood.
 
 **Done when:** the load report and Kubernetes/Grafana observations support a short written explanation of the bottleneck and the next change.
 
-## Phase 6 — Tear down and account for cost
+## Phase 6 — Tear down and account for cost (deferred)
 
 **Learn:** resource ownership, deletion order, persistent data lifecycle, and billing verification.
 
@@ -127,10 +127,9 @@ Keep services internal at first. Use `kubectl port-forward` for the API and Graf
 | Proposed file | Purpose |
 | --- | --- |
 | `deploy/eks/cluster.yaml` | Explicit, disposable `eksctl` cluster configuration |
-| `deploy/eks/values-stack.yaml` | ECR image and EKS storage overrides for the umbrella chart |
+| `deploy/eks/values-stack.yaml` | Both ECR images and EKS storage overrides for the umbrella chart |
 | `deploy/eks/values-monitoring.yaml` | EKS Prometheus storage overrides |
-| `.github/workflows/checks.yml` | Repository checks without AWS permissions |
-| `.github/workflows/image.yml` | OIDC-authenticated ECR build and push |
+| `.github/workflows/image.yml` | Optional OIDC-authenticated ECR build and push |
 | `scripts/eks-deploy.sh` or EKS Make targets | Manual, context-aware deployment sequence |
 | `scripts/eks-cleanup.sh` or a runbook | Explicit teardown and leftover-resource checks |
 

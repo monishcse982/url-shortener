@@ -1,6 +1,6 @@
 # Cognito management API and UI plan
 
-Status: deployed locally (2026-10-17); live Cognito sign-in flow pending
+Status: complete for the current local application scope. Cognito sign-in and management are configured. Production-origin changes are deferred until a hosting target is selected.
 
 ## Decisions and contract
 
@@ -24,10 +24,10 @@ Status: deployed locally (2026-10-17); live Cognito sign-in flow pending
 
 - [x] Recreate the local cluster and apply the consolidated initial migration through the deployment Job.
 - [x] Serve the frontend at `http://localhost:5173/` and the API at `http://localhost:8080` with `make app-up`.
-- [ ] Complete one Cognito sign-in/create/edit/disable flow in the browser.
-- [ ] When a production frontend origin is chosen, register its HTTPS callback and sign-out URLs in Cognito and set the frontend build variables and backend `CORS_ORIGINS` for that origin.
+- [x] Complete the Cognito sign-in and link-management flow in the browser.
+- Deferred with hosting: when a production frontend origin is chosen, register its HTTPS callback and sign-out URLs in Cognito and set the frontend build variables and backend `CORS_ORIGINS` for that origin.
 
 ## Verification and limits
 
-- Local tests can verify token validation with test keys and authenticated API behavior. A real Cognito login requires the running backend and Cognito configuration.
-- Production callback/sign-out URLs must be registered in the Cognito app client when a production frontend origin is chosen.
+- Local tests cover token validation and authenticated API behavior. The configured Cognito flow has also been completed in the browser.
+- Production callback/sign-out URLs and CORS settings need review only when a production frontend origin is selected.
