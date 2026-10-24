@@ -23,6 +23,16 @@ A FastAPI URL shortener built as a small event-driven system. It creates short l
 - Expose FastAPI, application, and Kafka Prometheus metrics at `/metrics`.
 - Provide `/dummy-target` for redirect and load testing.
 
+### User interface
+
+| Sign in | Manage links |
+| --- | --- |
+| <img src="docs/images/sign-in.png" alt="Zipp sign-in screen" width="520"> | <img src="docs/images/links.png" alt="Zipp link list and create form" width="520"> |
+
+| Link options | Link details |
+| --- | --- |
+| <img src="docs/images/link-options.png" alt="Optional link configuration fields" width="520"> | <img src="docs/images/link-details.png" alt="Link details and status" width="520"> |
+
 ### Infrastructure
 
 - Local Kubernetes cluster through Minikube.
@@ -220,6 +230,13 @@ forwards. Keep the command running and open
 forwards; Minikube keeps running. The first deployment can take several
 minutes while images and charts download.
 
+For later sessions, when you have not changed application code or deployment
+configuration, use `make app-start`. It starts the existing Minikube profile,
+waits for the API and UI to become ready, and opens only the UI and API
+forwards. It skips image builds, image loading, Helm upgrades, and dependency
+installation. Use `make app-up` after changing code, images, secrets, or chart
+configuration so those changes are applied.
+
 For backend infrastructure only, run:
 
 ```bash
@@ -247,16 +264,20 @@ Use these targets for the usual development cycle:
 
 ### Start and stop a work session
 
-Start an existing Minikube profile and check the stack:
+Resume the existing application without rebuilding or redeploying:
 
 ```bash
-make infra-start
-make infra-status
+make app-start
 ```
 
-Keep the application and local dependency tunnels open in a separate terminal:
+This starts the existing Minikube profile, waits for the API and UI Deployments,
+and opens their local forwards. For a full rebuild and deployment, use
+`make app-up`.
+
+To inspect the cluster and all local dependency tunnels, use:
 
 ```bash
+make infra-status
 make port-forward-all
 ```
 
@@ -527,6 +548,7 @@ make help
 | Command | Purpose |
 | --- | --- |
 | `make app-up` | Deploy the full stack and serve the UI locally |
+| `make app-start` | Resume an existing deployment and serve the UI without rebuilding |
 | `make infra-up` | Build, deploy, synchronize secrets, and wait for the complete stack |
 | `make infra-start` | Start an existing stopped Minikube profile |
 | `make infra-stop` | Stop Minikube while preserving cluster state |

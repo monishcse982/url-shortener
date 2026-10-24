@@ -48,7 +48,7 @@ PROMETHEUS_PORT ?= 9090
 PORT_FORWARD_FRONTEND ?= 1
 HELM_IMAGE_ARGS = --set-string shawty.image.repository=$(IMAGE) --set-string shawty.image.tag=$(IMAGE_TAG) --set-string frontend.image.repository=$(FRONTEND_IMAGE) --set-string frontend.image.tag=$(FRONTEND_IMAGE_TAG)
 
-.PHONY: help unit-test coverage app-up frontend-deps frontend-env-check infra-up infra-start infra-stop infra-status cluster-up cluster-stop cluster-status image-build image-load validate-env namespace secret postgres-secret valkey-secret kafka-operator monitoring-install monitoring-status grafana-password postgres-password valkey-password kafka-password prometheus-password grafana-forward prometheus-forward chart-deps chart-validate deploy wait-infra sync-kafka-password infra-ready migration-status status logs port-forward port-forward-app port-forward-all diagnose-port-forward restart uninstall cluster-delete makemigrations migrate
+.PHONY: help unit-test coverage app-up app-start frontend-deps frontend-env-check infra-up infra-start infra-stop infra-status cluster-up cluster-stop cluster-status image-build image-load validate-env namespace secret postgres-secret valkey-secret kafka-operator monitoring-install monitoring-status grafana-password postgres-password valkey-password kafka-password prometheus-password grafana-forward prometheus-forward chart-deps chart-validate deploy wait-infra sync-kafka-password infra-ready migration-status status logs port-forward port-forward-app port-forward-all diagnose-port-forward restart uninstall cluster-delete makemigrations migrate
 
 help: ## Show the available commands.
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target> [VARIABLE=value]\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -62,6 +62,11 @@ coverage: unit-test ## Run unit tests and print the coverage summary.
 	uv run --locked coverage report
 
 app-up: frontend-env-check infra-up ## Deploy the stack and serve the UI at localhost:5173; Ctrl+C stops local forwards.
+	PORT_FORWARD_CORE_ONLY=1 $(MAKE) port-forward-all
+
+app-start: frontend-env-check infra-start ## Resume an existing Minikube stack and serve the UI without rebuilding or redeploying.
+	$(KUBECTL) rollout status --namespace $(NAMESPACE) deployment/$(RELEASE) --timeout=5m
+	$(KUBECTL) rollout status --namespace $(NAMESPACE) deployment/$(FRONTEND_SERVICE) --timeout=5m
 	PORT_FORWARD_CORE_ONLY=1 $(MAKE) port-forward-all
 
 frontend-deps: ## Install locked frontend dependencies if they are missing.
