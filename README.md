@@ -2,7 +2,7 @@
 
 A FastAPI URL shortener built as a small event-driven system. It creates short links, redirects visitors, publishes visit events to Kafka, and persists visit details asynchronously in PostgreSQL. The repository also includes local Kubernetes deployment, Prometheus/Grafana observability, and repeatable Locust load profiles.
 
-The next planned capabilities are documented in [docs/roadmap.md](docs/roadmap.md).
+**Project status:** the current local application scope is complete. EKS hosting is deferred as a separate learning exercise. See [the project status and deferred roadmap](docs/roadmap.md).
 
 ## Current Capabilities
 
@@ -482,6 +482,11 @@ workflow has read-only repository permissions and does not deploy. To prevent
 merges when a check fails, require these job checks in the GitHub branch
 protection settings for `master`.
 
+The CI image job builds the API and frontend images but does not publish them.
+The project owner has completed ECR publication outside this repository; the
+[EKS learning plan](docs/eks-learning-plan.md) tracks the image references and
+deployment steps that still need to be recorded.
+
 Run Ruff checks:
 
 ```bash
@@ -616,13 +621,6 @@ Commit `uv.lock` and the source charts, but leave real credentials and load
 reports local. If a credential is ever committed, remove it from Git history
 and rotate it before publishing; adding it to `.gitignore` later is not enough.
 
-## Roadmap
+## Project Status
 
-The disable API is implemented. The remaining implementation sequence is:
-
-1. Atomic visit admission
-2. Redis redirect cache
-3. Rate limiting protection
-4. One-time and protected links
-
-See [docs/roadmap.md](docs/roadmap.md) for contracts, design constraints, and verification criteria.
+The application, Cognito management flow, and API load-testing scope are complete for local use. The repository's GitHub Actions workflow runs checks and builds images; it does not publish images to ECR or deploy to EKS. EKS is deferred. Optional reliability and browser end-to-end learning exercises are listed in [docs/roadmap.md](docs/roadmap.md).
